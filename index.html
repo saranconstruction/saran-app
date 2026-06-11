@@ -3,7 +3,6 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#0b0b0b" />
   <title>Saran Construction App</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="style.css" />
@@ -11,72 +10,69 @@
 <body>
   <div class="app">
     <header>
-      <img src="logo.png" alt="Saran Construction" class="logo" />
-      <p class="tag">Agenda • Chantiers • Punch • Dépenses</p>
+      <img src="logo.png" class="logo" alt="Saran Construction" />
+      <div class="tagline">AGENDA • CHANTIERS • PUNCH • DÉPENSES</div>
     </header>
 
+    <nav class="tabs">
+      <button data-tab="today" class="active">🏠 Aujourd'hui</button>
+      <button data-tab="calendar">📅 Calendrier</button>
+      <button data-tab="jobs">🛠 Chantiers</button>
+      <button data-tab="punch">⏱ Punch</button>
+      <button data-tab="expenses">💵 Dépenses</button>
+    </nav>
+
     <main>
-      <section class="card hero">
-        <div>
-          <p class="small">Aujourd'hui</p>
-          <h1>Tableau de bord</h1>
+      <section id="today" class="page active">
+        <div class="card hero"><div><small>AUJOURD'HUI</small><h1>Tableau de bord</h1></div><button onclick="openQuickTask()">+ TÂCHE</button></div>
+        <div id="todayList" class="list"></div>
+      </section>
+
+      <section id="calendar" class="page">
+        <div class="card"><h2>Ajouter au calendrier</h2>
+          <input id="taskTitle" placeholder="Tâche / job" />
+          <input id="taskDate" type="date" />
+          <select id="taskJob"></select>
+          <input id="taskEmployee" placeholder="Assigné à (Jesse, Karl...)" />
+          <textarea id="taskNote" placeholder="Notes"></textarea>
+          <button onclick="addTask()">Ajouter</button>
         </div>
-        <button onclick="addTask()">+ Tâche</button>
+        <div id="calendarList" class="list"></div>
       </section>
 
-      <section class="grid">
-        <button class="tile" onclick="showPage('calendrier')">📅<span>Calendrier</span></button>
-        <button class="tile" onclick="showPage('chantiers')">🛠<span>Chantiers</span></button>
-        <button class="tile" onclick="showPage('punch')">⏱<span>Punch</span></button>
-        <button class="tile" onclick="showPage('depenses')">💵<span>Dépenses</span></button>
+      <section id="jobs" class="page">
+        <div class="card"><h2>Nouveau chantier</h2>
+          <input id="jobName" placeholder="Client / chantier" />
+          <input id="jobAddress" placeholder="Adresse" />
+          <input id="jobPhone" placeholder="Téléphone" />
+          <textarea id="jobNote" placeholder="Notes du chantier"></textarea>
+          <button onclick="addJob()">Créer chantier</button>
+        </div>
+        <div id="jobsList" class="list"></div>
       </section>
 
-      <section id="calendrier" class="page card">
-        <h2>Calendrier</h2>
-        <div class="event"><b>Vendredi 12 juin</b><br>Virginie — planter les pieux</div>
-        <div class="event"><b>Vendredi 12 juin</b><br>Cécile Vette — reposer le Vénus</div>
-        <div class="event"><b>Lundi 15 juin</b><br>Guy Bergeron — pieux au 248 d'Allier</div>
+      <section id="punch" class="page">
+        <div class="card"><h2>Punch</h2>
+          <select id="punchJob"></select>
+          <input id="punchEmployee" placeholder="Employé" value="Jesse" />
+          <div class="row"><button onclick="punchIn()">Punch IN</button><button onclick="punchOut()">Punch OUT</button></div>
+        </div>
+        <div id="punchList" class="list"></div>
       </section>
 
-      <section id="chantiers" class="page card hidden">
-        <h2>Chantiers</h2>
-        <div class="job"><b>Virginie</b><span>PVC SJC • Pieux vendredi</span></div>
-        <div class="job"><b>Guy Bergeron</b><span>248 d'Allier • Pieux lundi</span></div>
-        <div class="job"><b>Cécile Vette</b><span>Reposer le Vénus</span></div>
-      </section>
-
-      <section id="punch" class="page card hidden">
-        <h2>Punch</h2>
-        <select id="chantierSelect">
-          <option>Virginie</option>
-          <option>Guy Bergeron</option>
-          <option>Cécile Vette</option>
-        </select>
-        <button onclick="punch('in')">Punch in</button>
-        <button onclick="punch('out')" class="outline">Punch out</button>
-        <p id="punchLog" class="log"></p>
-      </section>
-
-      <section id="depenses" class="page card hidden">
-        <h2>Dépense rapide</h2>
-        <input id="fournisseur" placeholder="Fournisseur" />
-        <input id="montant" placeholder="Montant" type="number" />
-        <select id="depenseChantier">
-          <option>Virginie</option>
-          <option>Guy Bergeron</option>
-          <option>Cécile Vette</option>
-        </select>
-        <button onclick="saveExpense()">Enregistrer</button>
-        <p id="expenseLog" class="log"></p>
+      <section id="expenses" class="page">
+        <div class="card"><h2>Dépense / facture</h2>
+          <select id="expenseJob"></select>
+          <input id="expenseSupplier" placeholder="Fournisseur (SJC, Canac...)" />
+          <input id="expenseAmount" type="number" step="0.01" placeholder="Montant" />
+          <select id="expenseCategory"><option>Matériaux</option><option>Essence</option><option>Location</option><option>Sous-traitant</option><option>Autre</option></select>
+          <input id="expensePhoto" type="file" accept="image/*" capture="environment" />
+          <textarea id="expenseNote" placeholder="Note"></textarea>
+          <button onclick="addExpense()">Sauvegarder facture</button>
+        </div>
+        <div id="expenseList" class="list"></div>
       </section>
     </main>
-
-    <nav>
-      <button onclick="showPage('calendrier')">📅</button>
-      <button onclick="showPage('chantiers')">🛠</button>
-      <button onclick="showPage('punch')">⏱</button>
-      <button onclick="showPage('depenses')">💵</button>
-    </nav>
   </div>
   <script src="script.js"></script>
 </body>
