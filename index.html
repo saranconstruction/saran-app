@@ -47,8 +47,11 @@
         <input id="jobName" placeholder="Client / chantier" />
         <input id="jobAddress" placeholder="Adresse" />
         <input id="jobPhone" placeholder="Téléphone" />
+        <label class="field-label">Couleur du chantier</label>
+        <input id="jobColor" type="color" value="#111111" />
         <textarea id="jobNotes" placeholder="Notes du chantier"></textarea>
         <button id="createJobBtn">CRÉER CHANTIER</button>
+        <button id="cancelJobEditBtn" class="darkBtn" style="display:none">ANNULER MODIFICATION</button>
       </div>
       <div id="jobsList" class="card-list"></div>
     </section>
@@ -91,6 +94,7 @@
   <dialog id="eventDialog">
     <form method="dialog" class="panel dialog-panel">
       <h1>ÉVÉNEMENT</h1>
+      <button type="button" id="fillFromJobBtn" class="darkBtn">REMPLIR AVEC LE CHANTIER</button>
       <input id="eventTitle" placeholder="Titre" />
       <input id="eventDate" type="date" />
       <input id="eventTime" type="time" />
