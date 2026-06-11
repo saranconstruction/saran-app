@@ -1,7 +1,81 @@
-export default function handler(req, res) {
-  res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
-  res.status(200).json({
-    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-    supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-  });
-}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Saran Construction App</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <header class="top">
+      <img src="logo.png" class="logo" alt="Saran Construction" />
+      <div class="tagline">AGENDA • CHANTIERS • PUNCH • DÉPENSES</div>
+      <div id="userBar" class="userbar"></div>
+    </header>
+
+    <main>
+      <section id="loginView" class="card hidden">
+        <h1>Connexion</h1>
+        <input id="email" type="email" placeholder="Courriel" autocomplete="email" />
+        <input id="password" type="password" placeholder="Mot de passe" autocomplete="current-password" />
+        <button id="loginBtn">Se connecter</button>
+        <button id="signupBtn" class="secondary">Créer le compte</button>
+        <p class="small">Crée d’abord ton compte Jesse, puis Karl pourra créer le sien avec son courriel.</p>
+      </section>
+
+      <section id="mainView" class="hidden">
+        <nav class="tabs">
+          <button data-tab="today" class="active">Aujourd’hui</button>
+          <button data-tab="calendar">Calendrier</button>
+          <button data-tab="jobs">Chantiers</button>
+          <button data-tab="punch">Punch</button>
+          <button data-tab="expenses">Dépenses</button>
+        </nav>
+
+        <section id="tab-today" class="tab active">
+          <div class="card"><h1>Aujourd’hui</h1><div id="todayList"></div></div>
+        </section>
+
+        <section id="tab-calendar" class="tab">
+          <div class="toolbar">
+            <button id="prevMonth">‹</button><h1 id="monthTitle">Calendrier</h1><button id="nextMonth">›</button>
+          </div>
+          <div class="toolbar"><button id="addEventBtn">+ Événement</button><button id="multiDateBtn" class="secondary">+ Chantier multi-dates</button></div>
+          <div class="weekdays"><b>Lun</b><b>Mar</b><b>Mer</b><b>Jeu</b><b>Ven</b><b>Sam</b><b>Dim</b></div>
+          <div id="calendarGrid" class="calendar"></div>
+        </section>
+
+        <section id="tab-jobs" class="tab">
+          <div class="card">
+            <h1>Nouveau chantier</h1>
+            <input id="jobName" placeholder="Nom du client / chantier" />
+            <input id="jobAddress" placeholder="Adresse" />
+            <input id="jobPhone" placeholder="Téléphone" />
+            <textarea id="jobNotes" placeholder="Notes du chantier"></textarea>
+            <select id="jobColor"><option value="#8cc8ff">Bleu</option><option value="#ff8bd1">Rose</option><option value="#fff06a">Jaune</option><option value="#90ee90">Vert</option><option value="#c9a6ff">Mauve</option></select>
+            <button id="saveJobBtn">Créer chantier</button>
+          </div>
+          <div id="jobsList"></div>
+        </section>
+
+        <section id="tab-punch" class="tab">
+          <div class="card"><h1>Punch</h1><select id="punchJob"></select><button id="punchInBtn">Punch in</button><button id="punchOutBtn" class="secondary">Punch out</button><div id="timer"></div><h2>Heures</h2><div id="timeList"></div></div>
+        </section>
+
+        <section id="tab-expenses" class="tab">
+          <div class="card"><h1>Dépense</h1><select id="expenseJob"></select><input id="supplier" placeholder="Fournisseur" /><input id="amount" type="number" step="0.01" placeholder="Montant" /><input id="description" placeholder="Description de l’achat" /><input id="receiptPhoto" type="file" accept="image/*" capture="environment" /><button id="saveExpenseBtn">Ajouter dépense</button></div>
+          <div id="expensesList"></div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="eventDialog"><form method="dialog" class="modal"><h1>Événement</h1><input id="eventTitle" placeholder="Titre" /><input id="eventDate" type="date" /><select id="eventJob"></select><textarea id="eventNotes" placeholder="Notes / tâches"></textarea><button id="saveEventBtn" type="button">Sauvegarder</button><button type="button" id="closeEventBtn" class="secondary">Fermer</button></form></dialog>
+  <dialog id="multiDialog"><form method="dialog" class="modal"><h1>Chantier multi-dates</h1><select id="multiJob"></select><input id="multiStart" type="date" /><input id="multiEnd" type="date" /><label class="check"><input id="includeWeekends" type="checkbox" /> Inclure samedi/dimanche</label><button id="saveMultiBtn" type="button">Ajouter au calendrier</button><button type="button" id="closeMultiBtn" class="secondary">Fermer</button></form></dialog>
+
+  <script src="script.js"></script>
+</body>
+</html>
