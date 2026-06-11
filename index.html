@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Saran Construction App V5.8 Avomarista</title>
+  <title>Saran Construction App V5.9 Supabase</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -12,17 +12,27 @@
     <img src="logo-icon.png" alt="Saran Construction" class="logo logoIcon" />
     <div>
       <h1>Saran Construction</h1>
-      <p id="roleLabel">Mode Admin</p>
+      </div><div class="adminBadgeWrap"><p id="roleLabel">Mode Admin</p></div><div>
     </div>
   </header>
 
-  <main>
+  <section id="loginScreen" class="authScreen hidden">
+    <div class="authCard">
+      <img src="logo-icon.png" alt="Saran Construction" class="authLogo">
+      <h2>Connexion</h2>
+      <p>Connecte-toi avec ton courriel.</p>
+      <input id="loginEmail" type="email" placeholder="Courriel">
+      <input id="loginPassword" type="password" placeholder="Mot de passe">
+      <button id="loginBtn" type="button">Se connecter</button>
+      <div id="loginError" class="loginError"></div>
+    </div>
+  </section>
+
+  <main id="appMain" class="hidden">
     <section class="card loginCard">
-      <label>Utilisateur</label>
-      <select id="userSelect">
-        <option value="jesse">Jesse — Admin</option>
-        <option value="karl">Karl — Employé</option>
-      </select>
+      <label>Connecté</label>
+      <div id="connectedUser" class="connectedUser">Chargement...</div>
+      <button id="logoutBtn" class="secondary logoutBtn" type="button">Déconnexion</button>
     </section>
 
     <nav class="tabs">
@@ -130,6 +140,7 @@
     </section>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="script.js"></script>
 </body>
 </html>

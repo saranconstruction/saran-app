@@ -1,3 +1,3 @@
 # saran-app
 
-Saran Construction App V5.8 Avomarista - logo opaque.
+Saran Construction App V5.9 Supabase login + sauvegarde réelle.

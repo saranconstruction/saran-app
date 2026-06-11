@@ -294,75 +294,57 @@ button.danger{background:linear-gradient(180deg,#bd2d2d,#690b0b)}
   .dashboardTop.fullLogoWatermark #roleLabel{margin-top:98px;font-size:10px;padding:7px 12px}
 }
 
-/* V5.8 Avomarista - logo complet opaque, badge déplacé sous le logo */
-.dashboardTop.fullLogoWatermark{
-  position:relative;
-  min-height:260px;
-  overflow:hidden;
-  padding:28px 18px 18px;
-  border-bottom:0;
+
+.fullLogoWatermark{
+flex-direction:column;
+border-bottom:none;
+padding-top:35px;
 }
-.dashboardTop.fullLogoWatermark::before{
-  content:"";
-  position:absolute;
-  top:18px;
-  left:50%;
-  transform:translateX(-50%);
-  width:min(520px,88vw);
-  height:190px;
-  background:url("logo.png") center center / contain no-repeat;
-  opacity:.92;
-  filter:none;
-  pointer-events:none;
-  z-index:0;
+.logoIcon{
+width:220px !important;
+height:220px !important;
+background:none !important;
+border:none !important;
+box-shadow:none !important;
+padding:0 !important;
+opacity:.95 !important;
 }
-.dashboardTop.fullLogoWatermark::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  background:radial-gradient(circle at 50% 38%, rgba(255,255,255,.08), transparent 62%);
-  pointer-events:none;
-  z-index:0;
+.adminBadgeWrap{
+margin-top:-10px;
 }
-.dashboardTop.fullLogoWatermark > *{
-  position:relative;
-  z-index:1;
+#roleLabel{
+display:inline-block;
+padding:10px 18px;
+background:#1d1d1d;
+border-radius:20px;
+border:1px solid rgba(255,255,255,.2);
 }
-.dashboardTop.fullLogoWatermark .logo{
-  display:none;
+.topbar h1{
+display:none;
 }
-.dashboardTop.fullLogoWatermark h1{
-  font-size:0;
-  line-height:0;
-  margin:0;
+
+
+.authScreen{
+  max-width:520px;
+  margin:35px auto 60px;
+  padding:20px;
 }
-.dashboardTop.fullLogoWatermark #roleLabel{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  margin-top:205px;
-  padding:8px 16px;
-  border-radius:999px;
-  background:rgba(0,0,0,.55);
-  border:1px solid rgba(255,255,255,.22);
-  color:#f4f1ea;
-  box-shadow:0 10px 25px rgba(0,0,0,.30);
-  letter-spacing:.16em;
+.authCard{
+  background:rgba(24,24,24,.92);
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:28px;
+  padding:30px;
+  text-align:center;
+  box-shadow:0 25px 70px rgba(0,0,0,.35);
 }
-@media(max-width:720px){
-  .dashboardTop.fullLogoWatermark{
-    min-height:228px;
-    padding-top:16px;
-  }
-  .dashboardTop.fullLogoWatermark::before{
-    top:16px;
-    width:min(390px,92vw);
-    height:165px;
-    opacity:.94;
-  }
-  .dashboardTop.fullLogoWatermark #roleLabel{
-    margin-top:178px;
-    font-size:10px;
-    padding:7px 12px;
-  }
+.authLogo{width:130px;height:130px;object-fit:contain;margin-bottom:10px;}
+.authCard h2{text-transform:uppercase;letter-spacing:1px;margin:8px 0;}
+.authCard p{opacity:.75;margin:0 0 16px;}
+.authCard input{
+  width:100%;box-sizing:border-box;margin:9px 0;padding:16px;border-radius:16px;
+  border:1px solid rgba(255,255,255,.22);background:#101010;color:#fff;font-size:16px;
 }
+.authCard button{width:100%;padding:16px;margin-top:12px;border-radius:18px;font-weight:900;}
+.loginError{margin-top:12px;color:#ffb4b4;font-weight:700;}
+.connectedUser{font-size:18px;font-weight:900;}
+.logoutBtn{margin-top:10px;}
