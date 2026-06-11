@@ -1,181 +1,72 @@
 const $ = (id)=>document.getElementById(id);
 const KEY='saranAppData';
-const OLD_KEYS=['saranAppV34','saranAppV33','saranAppV32','saranAppV31','saranAppV21','saranAppV2'];
-const DEFAULT_DATA={jobs:[
- {id:'default-virginie',name:'Virginie',address:'Adresse à ajouter',phone:'',notes:'PVC SJC + pieux',color:'#111111'},
- {id:'default-cecile',name:'Cécile Vette',address:'Adresse à ajouter',phone:'',notes:'Reposer le Vénus',color:'#555555'},
- {id:'default-guy',name:'Guy Bergeron',address:"248 d'Allier",phone:'',notes:'Pieux',color:'#888888'}
-],events:[],expenses:[],punches:[],activePunch:null};
+const OLD_KEYS=['saranAppV35','saranAppV34','saranAppV33','saranAppV32','saranAppV31','saranAppV21','saranAppV2','saranAppData'];
+const EMPTY_DATA={jobs:[],events:[],expenses:[],punches:[],activePunch:null};
+function esc(s){return String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 function safeParse(txt){try{return JSON.parse(txt)}catch(e){return null}}
-function normalize(data){
- data=data||{};
- return {
-  jobs:Array.isArray(data.jobs)?data.jobs:[],
-  events:Array.isArray(data.events)?data.events:[],
-  expenses:Array.isArray(data.expenses)?data.expenses:[],
-  punches:Array.isArray(data.punches)?data.punches:[],
-  activePunch:data.activePunch||null
- };
-}
+function normalize(data){data=data||{}; return {jobs:Array.isArray(data.jobs)?data.jobs:[],events:Array.isArray(data.events)?data.events:[],expenses:Array.isArray(data.expenses)?data.expenses:[],punches:Array.isArray(data.punches)?data.punches:[],activePunch:data.activePunch||null};}
 function loadState(){
- let current=safeParse(localStorage.getItem(KEY));
- if(current) return normalize(current);
- for(const k of OLD_KEYS){
-  const old=safeParse(localStorage.getItem(k));
-  if(old && (old.jobs?.length || old.events?.length || old.expenses?.length || old.punches?.length)){
-   const migrated=normalize(old);
-   localStorage.setItem(KEY,JSON.stringify(migrated));
-   return migrated;
+  const current=safeParse(localStorage.getItem(KEY));
+  if(current) return normalize(current);
+  for(const k of OLD_KEYS){
+    const old=safeParse(localStorage.getItem(k));
+    if(old && (old.jobs?.length || old.events?.length || old.expenses?.length || old.punches?.length)){
+      const migrated=normalize(old); localStorage.setItem(KEY,JSON.stringify(migrated)); return migrated;
+    }
   }
- }
- const fresh=JSON.parse(JSON.stringify(DEFAULT_DATA));
- localStorage.setItem(KEY,JSON.stringify(fresh));
- return fresh;
+  localStorage.setItem(KEY,JSON.stringify(EMPTY_DATA));
+  return JSON.parse(JSON.stringify(EMPTY_DATA));
 }
 let state=loadState();
-// Important: à partir de V3.5, on garde toujours la même clé localStorage.
-// Les prochains updates ne devraient plus effacer les chantiers que tu crées.
-let calDate=new Date(); let view='month'; let editingEventId=null; let selectedDay=null; let editingJobId=null;
+let calDate=new Date(); let view='month'; let selectedDay=todayISO(); let editingEventId=null; let editingJobId=null;
 function save(){localStorage.setItem(KEY,JSON.stringify(state));}
-function getJob(name){return state.jobs.find(j=>j.name===name)}
-function jobColor(name){return (getJob(name)||{}).color||'#111111'}
+function todayISO(){return new Date().toISOString().slice(0,10)}
 function fmtMoney(n){return (Number(n)||0).toLocaleString('fr-CA',{minimumFractionDigits:2,maximumFractionDigits:2})+' $'}
-function fmtDate(iso){return new Date(iso+'T12:00:00').toLocaleDateString('fr-CA',{weekday:'long',day:'numeric',month:'long'});}
+function fmtDate(iso){return new Date(iso+'T12:00:00').toLocaleDateString('fr-CA',{weekday:'long',day:'numeric',month:'long',year:'numeric'});}
+function getJob(name){return state.jobs.find(j=>j.name===name)}
+function jobColor(name){return (getJob(name)||{}).color||'#707070'}
 function screen(name){document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active',s.id===name));document.querySelectorAll('.bottom-nav button').forEach(b=>b.classList.toggle('active',b.dataset.screen===name));render();}
 document.querySelectorAll('.bottom-nav button').forEach(b=>b.onclick=()=>screen(b.dataset.screen));
 function render(){renderSelects();renderToday();renderJobs();renderExpenses();renderPunches();renderCalendar();}
 function renderSelects(){
- ['punchJob','expenseJob','eventJob','multiJobSelect'].forEach(id=>{
-  const el=$(id); if(!el)return;
-  const cur=el.value;
-  el.innerHTML='<option value="">Aucun chantier lié</option>'+state.jobs.map(j=>`<option value="${esc(j.name)}">${esc(j.name)}</option>`).join('');
-  if(state.jobs.some(j=>j.name===cur)) el.value=cur;
- });
- renderEventJobPicker();
+  ['punchJob','expenseJob','eventJob','multiJobSelect'].forEach(id=>{const el=$(id); if(!el)return; const cur=el.value; el.innerHTML='<option value="">Aucun chantier lié</option>'+state.jobs.map(j=>`<option value="${esc(j.name)}">${esc(j.name)}</option>`).join(''); if(state.jobs.some(j=>j.name===cur)) el.value=cur;});
+  renderEventJobPicker();
 }
-function renderEventJobPicker(){
- const box=$('eventJobPicker'); if(!box)return;
- const selected=$('eventJob')?$('eventJob').value:'';
- if(!state.jobs.length){box.innerHTML='<p class="muted">Aucun chantier créé. Va dans l’onglet Chantiers pour en créer un.</p>';return;}
- box.innerHTML=state.jobs.map(j=>`<button type="button" class="job-pick ${selected===j.name?'active':''}" onclick="selectEventJob('${j.id}')"><span class="color-dot" style="background:${esc(j.color||'#111111')}"></span><span>${esc(j.name)}<br><small>${esc(j.address||'')}</small></span></button>`).join('');
-}
-window.selectEventJob=(id)=>{
- const j=state.jobs.find(x=>x.id===id); if(!j)return;
- $('eventJob').value=j.name;
- renderEventJobPicker();
- if(!$('eventTitle').value.trim()) $('eventTitle').value=j.name+' — chantier';
- if(!$('eventNotes').value.trim()) $('eventNotes').value=[j.address,j.notes].filter(Boolean).join(' • ');
- $('eventType').value='Chantier';
-};
-
-function renderToday(){const list=$('todayList'); const d=todayISO(); const events=state.events.filter(e=>e.date===d).sort((a,b)=>(a.time||'99').localeCompare(b.time||'99')); list.innerHTML=events.length?events.map(eventCard).join(''):'<div class="event-card"><b>Aucune tâche aujourd’hui.</b><p class="muted">Ajoute un chantier ou un rappel dans le calendrier.</p></div>';}
+function renderEventJobPicker(){const box=$('eventJobPicker'); if(!box)return; const selected=$('eventJob')?.value||''; box.innerHTML=state.jobs.length?state.jobs.map(j=>`<button type="button" class="job-pick ${selected===j.name?'active':''}" onclick="selectEventJob('${j.id}')"><span class="color-dot" style="background:${esc(j.color||'#707070')}"></span><span>${esc(j.name)}<br><small>${esc(j.address||'')}</small></span></button>`).join(''):'<p class="muted">Aucun chantier créé.</p>';}
+window.selectEventJob=(id)=>{const j=state.jobs.find(x=>x.id===id); if(!j)return; $('eventJob').value=j.name; renderEventJobPicker(); if(!$('eventTitle').value.trim()) $('eventTitle').value=j.name+' — chantier'; if(!$('eventNotes').value.trim()) $('eventNotes').value=[j.address,j.notes].filter(Boolean).join(' • '); $('eventType').value='Chantier';};
+function renderToday(){const list=$('todayList'); if(!list)return; const d=todayISO(); const evs=state.events.filter(e=>e.date===d).sort(sortEvents); list.innerHTML=evs.length?evs.map(eventCard).join(''):'<div class="event-card"><b>Aucune tâche aujourd’hui.</b><p class="muted">Ajoute un chantier ou un rappel dans le calendrier.</p></div>';}
 function jobTotals(name){return state.expenses.filter(e=>e.jobName===name).reduce((a,e)=>a+Number(e.amount||0),0)}
-function renderJobs(){const list=$('jobsList'); list.innerHTML=state.jobs.map(j=>`<div class="job-card" style="border-left:8px solid ${esc(j.color||'#111111')}"><div class="card-title"><span class="color-dot" style="background:${esc(j.color||'#111111')}"></span>${esc(j.name)}</div><p class="muted">${esc(j.address||'Adresse à ajouter')}</p><p>${esc(j.notes||'')}</p><b>Dépenses: ${fmtMoney(jobTotals(j.name))}</b><div class="chips"><span class="chip">${state.events.filter(e=>e.jobName===j.name).length} événements</span><span class="chip">${state.expenses.filter(e=>e.jobName===j.name).length} factures</span></div><button onclick="editJob('${j.id}')">Modifier</button><button class="darkBtn" onclick="addJobToCalendar('${j.id}')">Ajouter au calendrier</button><button class="danger" onclick="deleteJob('${j.id}')">Supprimer</button></div>`).join('');}
-function clearJobForm(){['jobName','jobAddress','jobPhone','jobNotes'].forEach(id=>$(id).value=''); $('jobColor').value='#111111'; editingJobId=null; $('createJobBtn').textContent='CRÉER CHANTIER'; $('cancelJobEditBtn').style.display='none';}
-function createJob(){const name=$('jobName').value.trim(); if(!name){alert('Ajoute un nom de chantier.');return} const old=editingJobId?state.jobs.find(j=>j.id===editingJobId):null; const obj={id:editingJobId||crypto.randomUUID(),name,address:$('jobAddress').value.trim(),phone:$('jobPhone').value.trim(),notes:$('jobNotes').value.trim(),color:$('jobColor').value||'#111111'}; if(editingJobId){state.jobs=state.jobs.map(j=>j.id===editingJobId?obj:j); if(old&&old.name!==obj.name){state.events=state.events.map(e=>e.jobName===old.name?{...e,jobName:obj.name}:e); state.expenses=state.expenses.map(e=>e.jobName===old.name?{...e,jobName:obj.name}:e);}}else{state.jobs.push(obj)} clearJobForm(); save(); render();}
-$('createJobBtn').onclick=createJob; $('cancelJobEditBtn').onclick=clearJobForm;
-window.editJob=(id)=>{const j=state.jobs.find(x=>x.id===id); if(!j)return; editingJobId=id; $('jobName').value=j.name||''; $('jobAddress').value=j.address||''; $('jobPhone').value=j.phone||''; $('jobNotes').value=j.notes||''; $('jobColor').value=j.color||'#111111'; $('createJobBtn').textContent='SAUVEGARDER CHANTIER'; $('cancelJobEditBtn').style.display='block'; window.scrollTo({top:0,behavior:'smooth'});};
-window.addJobToCalendar=(id)=>{const j=state.jobs.find(x=>x.id===id); if(!j)return; screen('calendar'); openEvent({title:j.name+' — chantier',type:'Chantier',jobName:j.name,notes:j.address||j.notes||'',date:selectedDay||todayISO()});};
-window.deleteJob=(id)=>{if(confirm('Supprimer ce chantier? Les événements et factures restent, mais ne seront plus liés au chantier.')){state.jobs=state.jobs.filter(j=>j.id!==id);save();render();}}
-function renderExpenses(){const list=$('expensesList'); list.innerHTML=state.expenses.slice().reverse().map(e=>`<div class="expense-card"><b>${esc(e.supplier||'Dépense')}</b><p>${esc(e.jobName||'Aucun chantier')} • ${esc(e.category)} • ${fmtMoney(e.amount)}</p><p class="muted">${fmtDate(e.date)}</p>${e.photo?`<img class="expense-photo" src="${e.photo}" alt="Facture"/>`:''}<button class="darkBtn" onclick="deleteExpense('${e.id}')">Supprimer</button></div>`).join('')||'<div class="expense-card">Aucune dépense.</div>';}
+function renderJobs(){const list=$('jobsList'); if(!list)return; list.innerHTML=state.jobs.length?state.jobs.map(j=>`<div class="job-card" style="border-left:8px solid ${esc(j.color||'#707070')}"><div class="card-title"><span class="color-dot" style="background:${esc(j.color||'#707070')}"></span>${esc(j.name)}</div><p class="muted">${esc(j.address||'Adresse à ajouter')}</p><p>${esc(j.notes||'')}</p><b>Dépenses: ${fmtMoney(jobTotals(j.name))}</b><div class="chips"><span class="chip">${state.events.filter(e=>e.jobName===j.name).length} événements</span><span class="chip">${state.expenses.filter(e=>e.jobName===j.name).length} factures</span></div><button onclick="editJob('${j.id}')">Modifier</button><button class="darkBtn" onclick="addJobToCalendar('${j.id}')">Ajouter au calendrier</button><button class="danger" onclick="deleteJob('${j.id}')">Supprimer</button></div>`).join(''):'<div class="job-card"><b>Aucun chantier.</b><p class="muted">Crée ton premier chantier ci-dessus.</p></div>';}
+function clearJobForm(){['jobName','jobAddress','jobPhone','jobNotes'].forEach(id=>$(id).value=''); $('jobColor').value='#707070'; editingJobId=null; $('createJobBtn').textContent='CRÉER CHANTIER'; $('cancelJobEditBtn').classList.add('hidden'); $('jobFormTitle').textContent='NOUVEAU CHANTIER';}
+$('createJobBtn').onclick=()=>{const name=$('jobName').value.trim(); if(!name){alert('Ajoute un nom de chantier.');return} const old=editingJobId?state.jobs.find(j=>j.id===editingJobId):null; const obj={id:editingJobId||crypto.randomUUID(),name,address:$('jobAddress').value.trim(),phone:$('jobPhone').value.trim(),notes:$('jobNotes').value.trim(),color:$('jobColor').value||'#707070'}; if(editingJobId){state.jobs=state.jobs.map(j=>j.id===editingJobId?obj:j); if(old&&old.name!==obj.name){state.events=state.events.map(e=>e.jobName===old.name?{...e,jobName:obj.name}:e); state.expenses=state.expenses.map(e=>e.jobName===old.name?{...e,jobName:obj.name}:e);}}else{state.jobs.push(obj)} clearJobForm(); save(); render();};
+$('cancelJobEditBtn').onclick=clearJobForm;
+window.editJob=(id)=>{const j=state.jobs.find(x=>x.id===id); if(!j)return; editingJobId=id; $('jobFormTitle').textContent='MODIFIER CHANTIER'; $('jobName').value=j.name||''; $('jobAddress').value=j.address||''; $('jobPhone').value=j.phone||''; $('jobNotes').value=j.notes||''; $('jobColor').value=j.color||'#707070'; $('createJobBtn').textContent='SAUVEGARDER CHANTIER'; $('cancelJobEditBtn').classList.remove('hidden'); window.scrollTo({top:0,behavior:'smooth'});};
+window.addJobToCalendar=(id)=>{const j=state.jobs.find(x=>x.id===id); if(!j)return; screen('calendar'); openEvent({title:j.name+' — chantier',type:'Chantier',jobName:j.name,notes:[j.address,j.notes].filter(Boolean).join(' • '),date:selectedDay||todayISO()});};
+window.deleteJob=(id)=>{if(confirm('Supprimer ce chantier?')){state.jobs=state.jobs.filter(j=>j.id!==id);save();render();}};
+function renderExpenses(){const list=$('expensesList'); if(!list)return; list.innerHTML=state.expenses.slice().reverse().map(e=>`<div class="expense-card"><b>${esc(e.supplier||'Dépense')}</b><p>${esc(e.jobName||'Aucun chantier')} • ${esc(e.category)} • ${fmtMoney(e.amount)}</p><p class="muted">${fmtDate(e.date)}</p>${e.photo?`<img class="expense-photo" src="${e.photo}" alt="Facture"/>`:''}<button class="darkBtn" onclick="deleteExpense('${e.id}')">Supprimer</button></div>`).join('')||'<div class="expense-card">Aucune dépense.</div>';}
 $('addExpenseBtn').onclick=()=>{const file=$('expensePhoto').files[0]; const add=(photo='')=>{state.expenses.push({id:crypto.randomUUID(),jobName:$('expenseJob').value,supplier:$('expenseSupplier').value,amount:$('expenseAmount').value,category:$('expenseCategory').value,date:todayISO(),photo}); ['expenseSupplier','expenseAmount','expensePhoto'].forEach(id=>$(id).value=''); save(); render();}; if(file){const r=new FileReader(); r.onload=()=>add(r.result); r.readAsDataURL(file)}else add();};
-window.deleteExpense=(id)=>{state.expenses=state.expenses.filter(e=>e.id!==id);save();render()}
-function renderPunches(){const list=$('punchList'); list.innerHTML=(state.activePunch?`<div class="punch-card"><b>Punch actif</b><p>${state.activePunch.jobName||'Aucun chantier'} depuis ${new Date(state.activePunch.start).toLocaleTimeString('fr-CA',{hour:'2-digit',minute:'2-digit'})}</p></div>`:'')+state.punches.slice().reverse().map(p=>`<div class="punch-card"><b>${esc(p.jobName||'Aucun chantier')}</b><p>${new Date(p.start).toLocaleString('fr-CA')} → ${new Date(p.end).toLocaleString('fr-CA')}</p></div>`).join('');}
+window.deleteExpense=(id)=>{state.expenses=state.expenses.filter(e=>e.id!==id);save();render()};
+function renderPunches(){const list=$('punchList'); if(!list)return; list.innerHTML=(state.activePunch?`<div class="punch-card"><b>Punch actif</b><p>${state.activePunch.jobName||'Aucun chantier'} depuis ${new Date(state.activePunch.start).toLocaleTimeString('fr-CA',{hour:'2-digit',minute:'2-digit'})}</p></div>`:'')+state.punches.slice().reverse().map(p=>`<div class="punch-card"><b>${esc(p.jobName||'Aucun chantier')}</b><p>${new Date(p.start).toLocaleString('fr-CA')} → ${new Date(p.end).toLocaleString('fr-CA')}</p></div>`).join('');}
 $('punchInBtn').onclick=()=>{state.activePunch={jobName:$('punchJob').value,start:new Date().toISOString()};save();render();};
 $('punchOutBtn').onclick=()=>{if(!state.activePunch){alert('Aucun punch actif.');return}state.punches.push({...state.activePunch,end:new Date().toISOString(),id:crypto.randomUUID()});state.activePunch=null;save();render();};
-function renderCalendar(){const grid=$('calendarGrid'), title=$('calTitle'), agenda=$('agendaList'); if(!grid||!title)return; const y=calDate.getFullYear(), m=calDate.getMonth(); title.textContent=calDate.toLocaleDateString('fr-CA',{month:'long',year:'numeric'}).toUpperCase();
- grid.innerHTML=''; ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'].forEach(d=>grid.innerHTML+=`<div class="day-name">${d}</div>`);
- let start=new Date(y,m,1); let offset=(start.getDay()+6)%7; start.setDate(start.getDate()-offset); let days=view==='month'?42:(view==='week'?7:1); if(view==='week'){start=new Date(calDate); start.setDate(start.getDate()-((start.getDay()+6)%7));} if(view==='day'){start=new Date(calDate)}
- for(let i=0;i<days;i++){const d=new Date(start);d.setDate(start.getDate()+i);const iso=d.toISOString().slice(0,10);const evs=state.events.filter(e=>e.date===iso).sort((a,b)=>(a.time||'99').localeCompare(b.time||'99')); grid.innerHTML+=`<div class="cal-day ${d.getMonth()!==m?'other':''} ${iso===todayISO()?'today':''}" onclick="openDay('${iso}')"><div class="date-num">${d.getDate()}</div>${evs.slice(0,3).map(e=>`<span class="dot ${e.type}" style="background:${esc(jobColor(e.jobName))}">${esc(e.title)}</span>`).join('')}</div>`;}
- let upcoming=state.events.filter(e=>e.date>=todayISO()).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).slice(0,25); agenda.innerHTML=upcoming.map(eventCard).join('')||'<div class="event-card">Aucun événement à venir.</div>';
-}
-function eventCard(e){return `<div class="event-card" style="border-left:8px solid ${esc(jobColor(e.jobName))}" onclick="editEvent('${e.id}')"><div class="event-row"><b>${esc(e.title)}</b><span class="mini" style="background:${esc(jobColor(e.jobName))}">${esc(e.type)}</span></div><p>${fmtDate(e.date)} ${e.time?('• '+e.time):''}</p><p class="muted">${esc(e.jobName||'')} ${e.notes?'• '+esc(e.notes):''}</p></div>`}
-$('prevMonth').onclick=()=>{calDate.setMonth(calDate.getMonth()-1);renderCalendar()}; $('nextMonth').onclick=()=>{calDate.setMonth(calDate.getMonth()+1);renderCalendar()};
+function sortEvents(a,b){return (a.date+(a.time||'99:99')).localeCompare(b.date+(b.time||'99:99'))}
+function renderCalendar(){const grid=$('calendarGrid'), title=$('calTitle'), agenda=$('agendaList'); if(!grid||!title)return; const y=calDate.getFullYear(), m=calDate.getMonth(); title.textContent=calDate.toLocaleDateString('fr-CA',{month:'long',year:'numeric'}).toUpperCase(); grid.innerHTML=''; ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'].forEach(d=>grid.insertAdjacentHTML('beforeend',`<div class="day-name">${d}</div>`)); let start=new Date(y,m,1); let offset=(start.getDay()+6)%7; start.setDate(start.getDate()-offset); let days=42; if(view==='week'){start=new Date(calDate); start.setDate(start.getDate()-((start.getDay()+6)%7)); days=7;} if(view==='day'){start=new Date(calDate); days=1;} for(let i=0;i<days;i++){const d=new Date(start); d.setDate(start.getDate()+i); const iso=d.toISOString().slice(0,10); const evs=state.events.filter(e=>e.date===iso).sort(sortEvents); grid.insertAdjacentHTML('beforeend',`<div class="cal-day ${d.getMonth()!==m&&view==='month'?'other':''} ${iso===todayISO()?'today':''}" onclick="openDay('${iso}')"><div class="date-num">${d.getDate()}</div>${evs.slice(0,4).map(e=>`<span class="dot" style="background:${esc(jobColor(e.jobName))}">${esc(e.time?e.time+' ': '')}${esc(e.title)}</span>`).join('')}</div>`);} const upcoming=state.events.filter(e=>e.date>=todayISO()).sort(sortEvents).slice(0,30); agenda.innerHTML=upcoming.map(eventCard).join('')||'<div class="event-card">Aucun événement à venir.</div>';}
+function eventCard(e){return `<div class="event-card" style="border-left-color:${esc(jobColor(e.jobName))}" onclick="editEvent('${e.id}')"><div class="event-row"><b>${esc(e.title)}</b><span class="mini" style="background:${esc(jobColor(e.jobName))}">${esc(e.type)}</span></div><p>${fmtDate(e.date)} ${e.time?('• '+e.time):''}</p><p class="muted">${esc(e.jobName||'')} ${e.notes?'• '+esc(e.notes):''}</p></div>`}
+$('prevMonth').onclick=()=>{view==='week'?calDate.setDate(calDate.getDate()-7):view==='day'?calDate.setDate(calDate.getDate()-1):calDate.setMonth(calDate.getMonth()-1);renderCalendar()};
+$('nextMonth').onclick=()=>{view==='week'?calDate.setDate(calDate.getDate()+7):view==='day'?calDate.setDate(calDate.getDate()+1):calDate.setMonth(calDate.getMonth()+1);renderCalendar()};
 document.querySelectorAll('.viewBtn').forEach(b=>b.onclick=()=>{view=b.dataset.view;document.querySelectorAll('.viewBtn').forEach(x=>x.classList.toggle('active',x===b));renderCalendar();});
-$('newEventBtn').onclick=()=>openEvent();
-$('multiJobBtn').onclick=()=>openMultiJob();
-$('eventJob').onchange=()=>renderEventJobPicker(); window.openDay=openDay; window.editEvent=(id)=>openEvent(state.events.find(e=>e.id===id));
-
-
-function openMultiJob(){
- renderSelects();
- $('multiStartDate').value=selectedDay||todayISO();
- $('multiEndDate').value=selectedDay||todayISO();
- $('multiTime').value='08:00';
- $('multiNotes').value='';
- $('multiJobDialog').showModal();
-}
+$('newEventBtn').onclick=()=>openEvent({date:selectedDay||todayISO()}); $('multiJobBtn').onclick=()=>openMultiJob(); $('eventJob').onchange=()=>renderEventJobPicker();
+window.openDay=(iso)=>{selectedDay=iso; calDate=new Date(iso+'T12:00:00'); const evs=state.events.filter(e=>e.date===iso).sort(sortEvents); $('dayTitle').textContent=fmtDate(iso).toUpperCase(); $('dayEventsList').innerHTML=evs.length?evs.map(eventCard).join(''):'<div class="event-card"><b>Aucun événement cette journée.</b></div>'; $('dayDialog').showModal();};
+window.editEvent=(id)=>openEvent(state.events.find(e=>e.id===id)||{});
+$('closeDayBtn').onclick=()=>$('dayDialog').close(); $('addEventForDayBtn').onclick=()=>{const iso=selectedDay||todayISO(); $('dayDialog').close(); openEvent({date:iso});};
+function openMultiJob(){renderSelects(); $('multiStartDate').value=selectedDay||todayISO(); $('multiEndDate').value=selectedDay||todayISO(); $('multiTime').value='08:00'; $('multiNotes').value=''; $('multiJobDialog').showModal();}
 $('closeMultiJobBtn').onclick=()=>$('multiJobDialog').close();
-$('saveMultiJobBtn').onclick=(ev)=>{
- ev.preventDefault();
- const jobName=$('multiJobSelect').value;
- const start=$('multiStartDate').value;
- const end=$('multiEndDate').value;
- if(!jobName){alert('Choisis un chantier.');return}
- if(!start||!end){alert('Choisis une date de début et une date de fin.');return}
- const startDate=new Date(start+'T12:00:00');
- const endDate=new Date(end+'T12:00:00');
- if(endDate<startDate){alert('La date de fin doit être après la date de début.');return}
- const j=getJob(jobName);
- const notes=$('multiNotes').value.trim() || (j?[j.address,j.notes].filter(Boolean).join(' • '):'');
- const time=$('multiTime').value||'';
- let d=new Date(startDate);
- let count=0;
- while(d<=endDate){
-  const iso=d.toISOString().slice(0,10);
-  state.events.push({id:crypto.randomUUID(),title:jobName+' — chantier',date:iso,time,type:'Chantier',jobName,notes});
-  d.setDate(d.getDate()+1);
-  count++;
- }
- save();
- $('multiJobDialog').close();
- render();
- alert(count+' journée(s) ajoutée(s) au calendrier.');
-};
-
-function openDay(iso){
- selectedDay=iso;
- calDate=new Date(iso+'T12:00:00');
- const list=$('dayEventsList');
- $('dayTitle').textContent=fmtDate(iso).toUpperCase();
- const evs=state.events.filter(e=>e.date===iso).sort((a,b)=>(a.time||'99').localeCompare(b.time||'99'));
- list.innerHTML=evs.length?evs.map(eventCard).join(''):'<div class="event-card"><b>Aucun événement cette journée.</b><p class="muted">Utilise le bouton ci-dessous pour ajouter un chantier, rappel ou appel.</p></div>';
- $('dayDialog').showModal();
-}
-$('closeDayBtn').onclick=()=>$('dayDialog').close();
-$('addEventForDayBtn').onclick=()=>{ const iso=selectedDay||todayISO(); $('dayDialog').close(); openEvent({date:iso}); };
-
-function openEvent(e={}){editingEventId=e.id||null; renderSelects(); $('eventTitle').value=e.title||''; $('eventDate').value=e.date||todayISO(); if($('eventEndDate')) $('eventEndDate').value=e.endDate||''; $('eventTime').value=e.time||''; $('eventType').value=e.type||'Chantier'; $('eventJob').value=e.jobName||''; $('eventNotes').value=e.notes||''; $('deleteEventBtn').style.display=editingEventId?'block':'none'; renderEventJobPicker(); $('eventDialog').showModal();}
-$('fillFromJobBtn').onclick=()=>{const j=getJob($('eventJob').value); if(!j){alert('Choisis un chantier dans la liste.');return} if(!$('eventTitle').value.trim()) $('eventTitle').value=j.name+' — chantier'; if(!$('eventNotes').value.trim()) $('eventNotes').value=[j.address,j.notes].filter(Boolean).join(' • '); $('eventType').value='Chantier';};
+$('saveMultiJobBtn').onclick=(ev)=>{ev.preventDefault(); const jobName=$('multiJobSelect').value,start=$('multiStartDate').value,end=$('multiEndDate').value; if(!jobName){alert('Choisis un chantier.');return} if(!start||!end){alert('Choisis une date de début et de fin.');return} const startDate=new Date(start+'T12:00:00'), endDate=new Date(end+'T12:00:00'); if(endDate<startDate){alert('La date de fin doit être après la date de début.');return} const j=getJob(jobName), notes=$('multiNotes').value.trim() || (j?[j.address,j.notes].filter(Boolean).join(' • '):''), time=$('multiTime').value||''; let d=new Date(startDate), count=0; while(d<=endDate){const iso=d.toISOString().slice(0,10); state.events.push({id:crypto.randomUUID(),title:jobName+' — chantier',date:iso,time,type:'Chantier',jobName,notes}); d.setDate(d.getDate()+1); count++;} save(); $('multiJobDialog').close(); render(); alert(count+' journée(s) ajoutée(s).');};
+function openEvent(e={}){editingEventId=e.id||null; renderSelects(); $('eventTitle').value=e.title||''; $('eventDate').value=e.date||selectedDay||todayISO(); $('eventEndDate').value=e.endDate||''; $('eventTime').value=e.time||''; $('eventType').value=e.type||'Chantier'; $('eventJob').value=e.jobName||''; $('eventNotes').value=e.notes||''; $('deleteEventBtn').style.display=editingEventId?'block':'none'; renderEventJobPicker(); $('eventDialog').showModal();}
+$('fillFromJobBtn').onclick=()=>{const j=getJob($('eventJob').value); if(!j){alert('Choisis un chantier dans la liste.');return} $('eventTitle').value=j.name+' — chantier'; $('eventNotes').value=[j.address,j.notes].filter(Boolean).join(' • '); $('eventType').value='Chantier';};
 $('closeEventBtn').onclick=()=>$('eventDialog').close();
-$('saveEventBtn').onclick=(ev)=>{
- ev.preventDefault();
- const title=$('eventTitle').value.trim()||'Sans titre';
- const start=$('eventDate').value;
- const end=($('eventEndDate')&&$('eventEndDate').value)||'';
- const time=$('eventTime').value;
- const type=$('eventType').value;
- const jobName=$('eventJob').value;
- const notes=$('eventNotes').value;
- if(!start){alert('Choisis une date de début.');return}
- if(editingEventId){
-  const obj={id:editingEventId,title,date:start,endDate:end,time,type,jobName,notes};
-  state.events=state.events.map(e=>e.id===editingEventId?obj:e);
- }else if(end && end!==start){
-  const startDate=new Date(start+'T12:00:00');
-  const endDate=new Date(end+'T12:00:00');
-  if(endDate<startDate){alert('La date de fin doit être après la date de début.');return}
-  let d=new Date(startDate);
-  while(d<=endDate){
-   const iso=d.toISOString().slice(0,10);
-   state.events.push({id:crypto.randomUUID(),title,date:iso,endDate:end,time,type,jobName,notes});
-   d.setDate(d.getDate()+1);
-  }
- }else{
-  state.events.push({id:crypto.randomUUID(),title,date:start,endDate:end,time,type,jobName,notes});
- }
- save(); $('eventDialog').close(); render();
-};
-$('deleteEventBtn').onclick=()=>{if(editingEventId&&confirm('Supprimer cet événement?')){state.events=state.events.filter(e=>e.id!==editingEventId);save();$('eventDialog').close();render();}}
-function esc(s){return String(s||'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+$('saveEventBtn').onclick=(ev)=>{ev.preventDefault(); const title=$('eventTitle').value.trim()||'Sans titre', start=$('eventDate').value, end=$('eventEndDate').value, time=$('eventTime').value, type=$('eventType').value, jobName=$('eventJob').value, notes=$('eventNotes').value; if(!start){alert('Choisis une date.');return} if(editingEventId){state.events=state.events.map(e=>e.id===editingEventId?{id:editingEventId,title,date:start,endDate:end,time,type,jobName,notes}:e);} else if(end&&end!==start){const sd=new Date(start+'T12:00:00'), ed=new Date(end+'T12:00:00'); if(ed<sd){alert('La date de fin doit être après la date de début.');return} for(let d=new Date(sd);d<=ed;d.setDate(d.getDate()+1)){state.events.push({id:crypto.randomUUID(),title,date:d.toISOString().slice(0,10),endDate:end,time,type,jobName,notes});}} else {state.events.push({id:crypto.randomUUID(),title,date:start,endDate:end,time,type,jobName,notes});} save(); $('eventDialog').close(); render();};
+$('deleteEventBtn').onclick=()=>{if(editingEventId&&confirm('Supprimer cet événement?')){state.events=state.events.filter(e=>e.id!==editingEventId);save();$('eventDialog').close();render();}};
+$('exportBtn').onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='saran-app-backup.json'; a.click(); URL.revokeObjectURL(a.href);};
+$('importBtn').onclick=()=>{const file=$('importFile').files[0]; if(!file){alert('Choisis un fichier backup JSON.');return} const r=new FileReader(); r.onload=()=>{const data=safeParse(r.result); if(!data){alert('Fichier invalide.');return} state=normalize(data); save(); render(); alert('Données importées.');}; r.readAsText(file);};
 render();

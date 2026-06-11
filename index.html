@@ -15,55 +15,40 @@
     </header>
 
     <section id="today" class="screen active">
-      <div class="hero">
-        <small>AUJOURD'HUI</small>
-        <h1>TABLEAU DE BORD</h1>
-      </div>
+      <div class="hero"><small>AUJOURD'HUI</small><h1>TABLEAU DE BORD</h1></div>
       <div id="todayList" class="card-list"></div>
     </section>
 
     <section id="calendar" class="screen">
-      <div class="section-head">
+      <div class="section-head stack-mobile">
         <h1>CALENDRIER</h1>
-        <button id="newEventBtn">+ Événement</button>
-        <button id="multiJobBtn" class="darkBtn">+ Chantier multi-dates</button>
+        <div class="actions"><button id="newEventBtn">+ Événement</button><button id="multiJobBtn" class="darkBtn">+ Chantier multi-dates</button></div>
       </div>
       <div class="cal-controls">
-        <button id="prevMonth">‹</button>
-        <h2 id="calTitle"></h2>
-        <button id="nextMonth">›</button>
+        <button id="prevMonth">‹</button><h2 id="calTitle"></h2><button id="nextMonth">›</button>
       </div>
-      <div class="view-switch">
-        <button data-view="month" class="viewBtn active">Mois</button>
-        <button data-view="week" class="viewBtn">Semaine</button>
-        <button data-view="day" class="viewBtn">Jour</button>
-      </div>
+      <div class="view-switch"><button data-view="month" class="viewBtn active">Mois</button><button data-view="week" class="viewBtn">Semaine</button><button data-view="day" class="viewBtn">Jour</button></div>
       <div id="calendarGrid" class="calendar-grid"></div>
+      <h2 class="mt">À venir</h2>
       <div id="agendaList" class="card-list"></div>
     </section>
 
     <section id="jobs" class="screen">
       <div class="panel">
-        <h1>NOUVEAU CHANTIER</h1>
+        <h1 id="jobFormTitle">NOUVEAU CHANTIER</h1>
         <input id="jobName" placeholder="Client / chantier" />
         <input id="jobAddress" placeholder="Adresse" />
         <input id="jobPhone" placeholder="Téléphone" />
-        <label class="field-label">Couleur du chantier</label>
-        <input id="jobColor" type="color" value="#111111" />
+        <label class="field-label">Couleur du chantier</label><input id="jobColor" type="color" value="#707070" />
         <textarea id="jobNotes" placeholder="Notes du chantier"></textarea>
         <button id="createJobBtn">CRÉER CHANTIER</button>
-        <button id="cancelJobEditBtn" class="darkBtn" style="display:none">ANNULER MODIFICATION</button>
+        <button id="cancelJobEditBtn" class="darkBtn hidden">ANNULER MODIFICATION</button>
       </div>
       <div id="jobsList" class="card-list"></div>
     </section>
 
     <section id="punch" class="screen">
-      <div class="panel">
-        <h1>PUNCH</h1>
-        <select id="punchJob"></select>
-        <button id="punchInBtn">PUNCH IN</button>
-        <button id="punchOutBtn" class="darkBtn">PUNCH OUT</button>
-      </div>
+      <div class="panel"><h1>PUNCH</h1><select id="punchJob"></select><button id="punchInBtn">PUNCH IN</button><button id="punchOutBtn" class="darkBtn">PUNCH OUT</button></div>
       <div id="punchList" class="card-list"></div>
     </section>
 
@@ -73,61 +58,23 @@
         <select id="expenseJob"></select>
         <input id="expenseSupplier" placeholder="Fournisseur" />
         <input id="expenseAmount" type="number" step="0.01" placeholder="Montant" />
-        <select id="expenseCategory">
-          <option>Matériaux</option><option>Essence</option><option>Location</option><option>Sous-traitant</option><option>Autre</option>
-        </select>
+        <select id="expenseCategory"><option>Matériaux</option><option>Essence</option><option>Location</option><option>Sous-traitant</option><option>Autre</option></select>
         <input id="expensePhoto" type="file" accept="image/*" capture="environment" />
         <button id="addExpenseBtn">AJOUTER FACTURE</button>
       </div>
       <div id="expensesList" class="card-list"></div>
     </section>
+
+    <section id="settings" class="screen">
+      <div class="panel"><h1>SAUVEGARDE</h1><p class="muted">Utilise ça avant de changer de domaine, téléphone ou version.</p><button id="exportBtn">EXPORTER MES DONNÉES</button><input id="importFile" type="file" accept="application/json" /><button id="importBtn" class="darkBtn">IMPORTER MES DONNÉES</button></div>
+    </section>
   </main>
 
-  <dialog id="dayDialog">
-    <div class="panel dialog-panel">
-      <h1 id="dayTitle">JOURNÉE</h1>
-      <div id="dayEventsList" class="card-list"></div>
-      <button id="addEventForDayBtn">+ AJOUTER UN ÉVÉNEMENT</button>
-      <button type="button" id="closeDayBtn" class="darkBtn">FERMER</button>
-    </div>
-  </dialog>
+  <dialog id="dayDialog"><div class="panel dialog-panel"><h1 id="dayTitle">JOURNÉE</h1><div id="dayEventsList" class="card-list"></div><button id="addEventForDayBtn">+ AJOUTER UN ÉVÉNEMENT</button><button type="button" id="closeDayBtn" class="darkBtn">FERMER</button></div></dialog>
 
-  <dialog id="multiJobDialog">
-    <form method="dialog" class="panel dialog-panel">
-      <h1>CHANTIER SUR PLUSIEURS DATES</h1>
-      <label class="field-label">Chantier</label>
-      <select id="multiJobSelect"></select>
-      <label class="field-label">Date de début</label>
-      <input id="multiStartDate" type="date" />
-      <label class="field-label">Date de fin</label>
-      <input id="multiEndDate" type="date" />
-      <label class="field-label">Heure par défaut</label>
-      <input id="multiTime" type="time" value="08:00" />
-      <textarea id="multiNotes" placeholder="Notes générales pour ces journées"></textarea>
-      <button id="saveMultiJobBtn">AJOUTER AU CALENDRIER</button>
-      <button type="button" id="closeMultiJobBtn" class="darkBtn">FERMER</button>
-    </form>
-  </dialog>
+  <dialog id="multiJobDialog"><form method="dialog" class="panel dialog-panel"><h1>CHANTIER MULTI-DATES</h1><label class="field-label">Chantier</label><select id="multiJobSelect"></select><label class="field-label">Date de début</label><input id="multiStartDate" type="date" /><label class="field-label">Date de fin</label><input id="multiEndDate" type="date" /><label class="field-label">Heure par défaut</label><input id="multiTime" type="time" value="08:00" /><textarea id="multiNotes" placeholder="Notes générales pour ces journées"></textarea><button id="saveMultiJobBtn">AJOUTER AU CALENDRIER</button><button type="button" id="closeMultiJobBtn" class="darkBtn">FERMER</button></form></dialog>
 
-  <dialog id="eventDialog">
-    <form method="dialog" class="panel dialog-panel">
-      <h1>ÉVÉNEMENT</h1>
-      <button type="button" id="fillFromJobBtn" class="darkBtn">REMPLIR AVEC LE CHANTIER</button>
-      <input id="eventTitle" placeholder="Titre" />
-      <label class="field-label">Date de début</label>
-      <input id="eventDate" type="date" />
-      <label class="field-label">Date de fin optionnelle</label>
-      <input id="eventEndDate" type="date" />
-      <input id="eventTime" type="time" />
-      <select id="eventType"><option>Chantier</option><option>Appel</option><option>Commande</option><option>Livraison</option><option>Rappel</option></select>
-      <select id="eventJob"></select>
-      <div id="eventJobPicker" class="job-picker"></div>
-      <textarea id="eventNotes" placeholder="Notes"></textarea>
-      <button id="saveEventBtn">SAUVEGARDER</button>
-      <button id="deleteEventBtn" class="danger" type="button">SUPPRIMER</button>
-      <button type="button" id="closeEventBtn" class="darkBtn">FERMER</button>
-    </form>
-  </dialog>
+  <dialog id="eventDialog"><form method="dialog" class="panel dialog-panel"><h1>ÉVÉNEMENT</h1><label class="field-label">Chantier lié</label><select id="eventJob"></select><div id="eventJobPicker" class="job-picker"></div><button type="button" id="fillFromJobBtn" class="darkBtn">REMPLIR AVEC LE CHANTIER</button><input id="eventTitle" placeholder="Titre" /><label class="field-label">Date de début</label><input id="eventDate" type="date" /><label class="field-label">Date de fin optionnelle</label><input id="eventEndDate" type="date" /><input id="eventTime" type="time" /><select id="eventType"><option>Chantier</option><option>Appel</option><option>Commande</option><option>Livraison</option><option>Rappel</option></select><textarea id="eventNotes" placeholder="Notes"></textarea><button id="saveEventBtn">SAUVEGARDER</button><button id="deleteEventBtn" class="danger" type="button">SUPPRIMER</button><button type="button" id="closeEventBtn" class="darkBtn">FERMER</button></form></dialog>
 
   <nav class="bottom-nav">
     <button data-screen="today" class="active">🏠<span>Aujourd'hui</span></button>
@@ -135,6 +82,7 @@
     <button data-screen="jobs">🛠️<span>Chantiers</span></button>
     <button data-screen="punch">⏱️<span>Punch</span></button>
     <button data-screen="expenses">💵<span>Dépenses</span></button>
+    <button data-screen="settings">⚙️<span>Plus</span></button>
   </nav>
   <script src="script.js"></script>
 </body>
