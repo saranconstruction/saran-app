@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Saran Construction App V5.9 Supabase</title>
+  <title>Saran Construction App V6.1</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -24,7 +24,20 @@
       <input id="loginEmail" type="email" placeholder="Courriel">
       <input id="loginPassword" type="password" placeholder="Mot de passe">
       <button id="loginBtn" type="button">Se connecter</button>
+      <button id="forgotPasswordBtn" class="linkBtn" type="button">Mot de passe oublié</button>
       <div id="loginError" class="loginError"></div>
+    </div>
+  </section>
+
+  <section id="passwordScreen" class="authScreen hidden">
+    <div class="authCard">
+      <img src="logo-icon.png" alt="Saran Construction" class="authLogo">
+      <h2>Nouveau mot de passe</h2>
+      <p>Entre ton nouveau mot de passe.</p>
+      <input id="newPassword" type="password" placeholder="Nouveau mot de passe">
+      <input id="newPassword2" type="password" placeholder="Confirmer le mot de passe">
+      <button id="updatePasswordBtn" type="button">Changer le mot de passe</button>
+      <div id="passwordError" class="loginError"></div>
     </div>
   </section>
 

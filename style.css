@@ -362,3 +362,6 @@ display:none;
   max-width:520px;
   margin:0 auto;
 }
+
+.linkBtn{display:block;width:100%;margin-top:12px;padding:12px 14px;background:transparent!important;border:1px solid rgba(255,255,255,.18)!important;color:#f4f1ea!important;border-radius:16px;font-weight:800;}
+#passwordScreen .authCard{max-width:520px;margin:0 auto;}

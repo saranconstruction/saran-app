@@ -1,3 +1,3 @@
 # saran-app
 
-Saran Construction App V6.0 - login Supabase, rôles corrigés et changement de mot de passe.
+V6.1 - rôle admin corrigé + mot de passe oublié visible.

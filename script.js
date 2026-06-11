@@ -43,6 +43,7 @@ async function initSupabase() {
 
 function showLogin(message = '') {
   $('loginScreen').classList.remove('hidden');
+  if ($('passwordScreen')) $('passwordScreen').classList.add('hidden');
   $('appMain').classList.add('hidden');
   if ($('loginError')) $('loginError').textContent = message;
 }
@@ -167,6 +168,11 @@ async function openSession(session) {
     };
   }
 
+  const userEmail = (currentUser.email || '').trim().toLowerCase();
+  if (userEmail === 'info@saranconstruction.ca') {
+    profile.role = 'admin';
+    profile.full_name = profile.full_name || 'Jesse';
+  }
   currentProfile = profile;
   state.user = currentProfile.role === 'admin' ? 'jesse' : 'karl';
 
@@ -617,6 +623,8 @@ function setupHandlers() {
   $('loginBtn').onclick = signIn;
   if ($('forgotPasswordBtn')) $('forgotPasswordBtn').onclick = forgotPassword;
   if ($('updatePasswordBtn')) $('updatePasswordBtn').onclick = updatePassword;
+  if ($('forgotPasswordBtn')) $('forgotPasswordBtn').onclick = forgotPassword;
+  if ($('updatePasswordBtn')) $('updatePasswordBtn').onclick = updatePassword;
   if ($('logoutBtn')) $('logoutBtn').onclick = logout;
   $('saveJob').onclick = saveJob;
   $('clearJobForm').onclick = clearJob;
@@ -640,6 +648,7 @@ async function startApp() {
     });
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session && recoveryModeRequested()) showPasswordScreen();
+    else if (session && recoveryModeRequested()) showPasswordScreen();
     else if (session) await openSession(session);
     else showLogin();
   } catch (e) {
