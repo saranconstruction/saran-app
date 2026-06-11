@@ -26,6 +26,7 @@
       <div class="section-head">
         <h1>CALENDRIER</h1>
         <button id="newEventBtn">+ Événement</button>
+        <button id="multiJobBtn" class="darkBtn">+ Chantier multi-dates</button>
       </div>
       <div class="cal-controls">
         <button id="prevMonth">‹</button>
@@ -89,6 +90,23 @@
       <button id="addEventForDayBtn">+ AJOUTER UN ÉVÉNEMENT</button>
       <button type="button" id="closeDayBtn" class="darkBtn">FERMER</button>
     </div>
+  </dialog>
+
+  <dialog id="multiJobDialog">
+    <form method="dialog" class="panel dialog-panel">
+      <h1>CHANTIER SUR PLUSIEURS DATES</h1>
+      <label class="field-label">Chantier</label>
+      <select id="multiJobSelect"></select>
+      <label class="field-label">Date de début</label>
+      <input id="multiStartDate" type="date" />
+      <label class="field-label">Date de fin</label>
+      <input id="multiEndDate" type="date" />
+      <label class="field-label">Heure par défaut</label>
+      <input id="multiTime" type="time" value="08:00" />
+      <textarea id="multiNotes" placeholder="Notes générales pour ces journées"></textarea>
+      <button id="saveMultiJobBtn">AJOUTER AU CALENDRIER</button>
+      <button type="button" id="closeMultiJobBtn" class="darkBtn">FERMER</button>
+    </form>
   </dialog>
 
   <dialog id="eventDialog">

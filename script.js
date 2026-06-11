@@ -1,7 +1,7 @@
 const $ = (id)=>document.getElementById(id);
-const KEY='saranAppV33';
+const KEY='saranAppV34';
 const todayISO=()=>new Date().toISOString().slice(0,10);
-let state=JSON.parse(localStorage.getItem(KEY)||localStorage.getItem('saranAppV32')||localStorage.getItem('saranAppV31')||'null')||{
+let state=JSON.parse(localStorage.getItem(KEY)||localStorage.getItem('saranAppV33')||localStorage.getItem('saranAppV32')||localStorage.getItem('saranAppV31')||'null')||{
  jobs:[
   {id:crypto.randomUUID(),name:'Virginie',address:'Adresse à ajouter',phone:'',notes:'PVC SJC + pieux',color:'#111111'},
   {id:crypto.randomUUID(),name:'Cécile Vette',address:'Adresse à ajouter',phone:'',notes:'Reposer le Vénus',color:'#555555'},
@@ -23,7 +23,7 @@ function screen(name){document.querySelectorAll('.screen').forEach(s=>s.classLis
 document.querySelectorAll('.bottom-nav button').forEach(b=>b.onclick=()=>screen(b.dataset.screen));
 function render(){renderSelects();renderToday();renderJobs();renderExpenses();renderPunches();renderCalendar();}
 function renderSelects(){
- ['punchJob','expenseJob','eventJob'].forEach(id=>{
+ ['punchJob','expenseJob','eventJob','multiJobSelect'].forEach(id=>{
   const el=$(id); if(!el)return;
   const cur=el.value;
   el.innerHTML='<option value="">Aucun chantier lié</option>'+state.jobs.map(j=>`<option value="${esc(j.name)}">${esc(j.name)}</option>`).join('');
@@ -70,7 +70,46 @@ function renderCalendar(){const grid=$('calendarGrid'), title=$('calTitle'), age
 function eventCard(e){return `<div class="event-card" style="border-left:8px solid ${esc(jobColor(e.jobName))}" onclick="editEvent('${e.id}')"><div class="event-row"><b>${esc(e.title)}</b><span class="mini" style="background:${esc(jobColor(e.jobName))}">${esc(e.type)}</span></div><p>${fmtDate(e.date)} ${e.time?('• '+e.time):''}</p><p class="muted">${esc(e.jobName||'')} ${e.notes?'• '+esc(e.notes):''}</p></div>`}
 $('prevMonth').onclick=()=>{calDate.setMonth(calDate.getMonth()-1);renderCalendar()}; $('nextMonth').onclick=()=>{calDate.setMonth(calDate.getMonth()+1);renderCalendar()};
 document.querySelectorAll('.viewBtn').forEach(b=>b.onclick=()=>{view=b.dataset.view;document.querySelectorAll('.viewBtn').forEach(x=>x.classList.toggle('active',x===b));renderCalendar();});
-$('newEventBtn').onclick=()=>openEvent(); $('eventJob').onchange=()=>renderEventJobPicker(); window.openDay=openDay; window.editEvent=(id)=>openEvent(state.events.find(e=>e.id===id));
+$('newEventBtn').onclick=()=>openEvent();
+$('multiJobBtn').onclick=()=>openMultiJob();
+$('eventJob').onchange=()=>renderEventJobPicker(); window.openDay=openDay; window.editEvent=(id)=>openEvent(state.events.find(e=>e.id===id));
+
+
+function openMultiJob(){
+ renderSelects();
+ $('multiStartDate').value=selectedDay||todayISO();
+ $('multiEndDate').value=selectedDay||todayISO();
+ $('multiTime').value='08:00';
+ $('multiNotes').value='';
+ $('multiJobDialog').showModal();
+}
+$('closeMultiJobBtn').onclick=()=>$('multiJobDialog').close();
+$('saveMultiJobBtn').onclick=(ev)=>{
+ ev.preventDefault();
+ const jobName=$('multiJobSelect').value;
+ const start=$('multiStartDate').value;
+ const end=$('multiEndDate').value;
+ if(!jobName){alert('Choisis un chantier.');return}
+ if(!start||!end){alert('Choisis une date de début et une date de fin.');return}
+ const startDate=new Date(start+'T12:00:00');
+ const endDate=new Date(end+'T12:00:00');
+ if(endDate<startDate){alert('La date de fin doit être après la date de début.');return}
+ const j=getJob(jobName);
+ const notes=$('multiNotes').value.trim() || (j?[j.address,j.notes].filter(Boolean).join(' • '):'');
+ const time=$('multiTime').value||'';
+ let d=new Date(startDate);
+ let count=0;
+ while(d<=endDate){
+  const iso=d.toISOString().slice(0,10);
+  state.events.push({id:crypto.randomUUID(),title:jobName+' — chantier',date:iso,time,type:'Chantier',jobName,notes});
+  d.setDate(d.getDate()+1);
+  count++;
+ }
+ save();
+ $('multiJobDialog').close();
+ render();
+ alert(count+' journée(s) ajoutée(s) au calendrier.');
+};
 
 function openDay(iso){
  selectedDay=iso;
