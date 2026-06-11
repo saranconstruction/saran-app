@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Saran Construction App V4</title>
+  <title>Saran Construction App V4.1</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -11,7 +11,7 @@
   <header class="topbar">
     <img src="logo.png" alt="Saran Construction" class="logo" />
     <div>
-      <h1>Saran App V4</h1>
+      <h1>Saran App V4.1</h1>
       <p id="roleLabel">Mode Admin</p>
     </div>
   </header>
@@ -48,10 +48,12 @@
       <div class="calendarGrid" id="calendarGrid"></div>
       <div id="dayPanel" class="card hidden"></div>
       <div class="card adminOnly">
-        <h3>Ajouter chantier multi-dates</h3>
+        <h3>Planifier un chantier multi-dates</h3>
+        <p class="hint">Par défaut, les samedis et dimanches ne seront pas ajoutés.</p>
         <select id="multiJob"></select>
         <div class="two"><input type="date" id="multiStart"><input type="date" id="multiEnd"></div>
         <input type="time" id="multiTime" value="07:00">
+        <label class="checkLine"><input type="checkbox" id="includeWeekends"> Inclure samedi/dimanche</label>
         <button id="addMulti">Ajouter au calendrier</button>
       </div>
     </section>

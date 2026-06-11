@@ -24,7 +24,28 @@ function deleteJob(id){if(!confirm('Supprimer ce chantier complet, ses événeme
 function renderJobs(){const list=$('jobList'); list.innerHTML=state.jobs.map(j=>`<div class="jobRow"><div class="rowTop"><strong><span class="colorDot" style="background:${j.color}"></span> ${j.name}</strong><span>${j.address||''}</span></div><p>${j.notes||''}</p><button onclick="editJob('${j.id}')">Modifier</button> <button class="danger" onclick="deleteJob('${j.id}')">Supprimer chantier complet</button></div>`).join('')||'<div class="card">Aucun chantier.</div>';}
 
 $('prevMonth').onclick=()=>{currentMonth.setMonth(currentMonth.getMonth()-1);renderCalendar()}; $('nextMonth').onclick=()=>{currentMonth.setMonth(currentMonth.getMonth()+1);renderCalendar()};
-$('addMulti').onclick=()=>{const jobId=$('multiJob').value,start=$('multiStart').value,end=$('multiEnd').value,time=$('multiTime').value||'07:00'; if(!jobId||!start||!end)return alert('Choisis chantier, date début et date fin'); let d=new Date(start+'T12:00'), last=new Date(end+'T12:00'); if(d>last)return alert('Date de fin avant date de début'); const series=uid(); while(d<=last){const date=d.toISOString().slice(0,10); const j=jobById(jobId); state.events.push({id:uid(),seriesId:series,jobId,date,time,title:j.name,color:j.color}); d.setDate(d.getDate()+1);} save();};
+$('addMulti').onclick=()=>{
+  const jobId=$('multiJob').value,start=$('multiStart').value,end=$('multiEnd').value,time=$('multiTime').value||'07:00';
+  const includeWeekends=$('includeWeekends') && $('includeWeekends').checked;
+  if(!jobId||!start||!end)return alert('Choisis chantier, date début et date fin');
+  let d=new Date(start+'T12:00'), last=new Date(end+'T12:00');
+  if(d>last)return alert('Date de fin avant date de début');
+  const series=uid();
+  const j=jobById(jobId);
+  let added=0, skipped=0;
+  while(d<=last){
+    const day=d.getDay(); // 0 dimanche, 6 samedi
+    const isWeekend=day===0||day===6;
+    if(includeWeekends || !isWeekend){
+      const date=d.toISOString().slice(0,10);
+      state.events.push({id:uid(),seriesId:series,jobId,date,time,title:j.name,color:j.color});
+      added++;
+    } else { skipped++; }
+    d.setDate(d.getDate()+1);
+  }
+  save();
+  alert(`${added} journée(s) ajoutée(s). ${skipped} samedi/dimanche ignoré(s).`);
+};
 function renderCalendar(){renderSelects(); $('monthLabel').textContent=currentMonth.toLocaleDateString('fr-CA',{month:'long',year:'numeric'}); const grid=$('calendarGrid'); const y=currentMonth.getFullYear(),m=currentMonth.getMonth(); const first=new Date(y,m,1); const start=new Date(first); start.setDate(first.getDate()-((first.getDay()+6)%7)); const names=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']; grid.innerHTML=names.map(n=>`<div class="dayName">${n}</div>`).join(''); for(let i=0;i<42;i++){let d=new Date(start); d.setDate(start.getDate()+i); const iso=d.toISOString().slice(0,10); const evs=state.events.filter(e=>e.date===iso); grid.innerHTML+=`<div class="day ${d.getMonth()!==m?'out':''}" onclick="openDay('${iso}')"><div class="dateNum">${d.getDate()}</div>${evs.slice(0,3).map(e=>`<div class="eventPill" style="background:${e.color||'#333'}">${e.title}</div>`).join('')}</div>`;} }
 function openDay(iso){selectedDate=iso; const evs=state.events.filter(e=>e.date===iso); const panel=$('dayPanel'); panel.classList.remove('hidden'); panel.innerHTML=`<h3>${iso}</h3>${evs.map(e=>eventHtml(e)).join('')||'<p>Rien cette date.</p>'}<div class="adminOnly"><h4>Ajouter tâche à cette journée</h4><select id="taskJob">${state.jobs.map(j=>`<option value="${j.id}">${j.name}</option>`).join('')}</select><input id="taskTitle" placeholder="Tâche à faire"><button onclick="addTaskToDay()">Ajouter tâche</button></div>`; applyRole();}
 function eventHtml(e){const j=jobById(e.jobId)||{}; const tasks=state.tasks.filter(t=>t.eventId===e.id); return `<div class="jobRow"><strong style="color:${e.color}">${e.title}</strong><p>${j.address||''} ${e.time||''}</p>${tasks.map(t=>`<div class="taskRow ${t.done?'done':''}" onclick="toggleTask('${t.id}')">☑ ${t.title}</div>`).join('')}<button onclick="deleteEvent('${e.id}')">Supprimer cette journée</button> <button class="danger" onclick="deleteSeries('${e.seriesId||e.id}')">Supprimer toute la série</button></div>`}
