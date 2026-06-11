@@ -1,3 +1,1 @@
-saran-app
-
-Saran Construction App V5.6 dashboard mobile avec logo symbole seul.
+Saran App V5.7 - logo complet en filigrane (dashboard intact)

@@ -236,3 +236,60 @@ button.danger{background:linear-gradient(180deg,#bd2d2d,#690b0b)}
   .dashboardTop .logo.logoIcon{width:102px;height:102px}
   .dashboardTop h1{font-size:22px;letter-spacing:.10em}
 }
+
+
+/* V5.7 - logo complet en filigrane, fonctions intactes */
+.dashboardTop.fullLogoWatermark{
+  position:relative;
+  min-height:165px;
+  overflow:hidden;
+  padding:26px 18px 18px;
+  border-bottom:0;
+}
+.dashboardTop.fullLogoWatermark::before{
+  content:"";
+  position:absolute;
+  inset:8px 14px 0;
+  background:url("logo.png") center center / contain no-repeat;
+  opacity:.18;
+  filter:grayscale(1) contrast(1.08) brightness(1.12);
+  pointer-events:none;
+  z-index:0;
+}
+.dashboardTop.fullLogoWatermark::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:radial-gradient(circle at 50% 45%, rgba(255,255,255,.055), transparent 58%);
+  pointer-events:none;
+  z-index:0;
+}
+.dashboardTop.fullLogoWatermark > *{
+  position:relative;
+  z-index:1;
+}
+.dashboardTop.fullLogoWatermark .logo{
+  display:none;
+}
+.dashboardTop.fullLogoWatermark h1{
+  font-size:0;
+  line-height:0;
+  margin:0;
+}
+.dashboardTop.fullLogoWatermark #roleLabel{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  margin-top:118px;
+  padding:8px 14px;
+  border-radius:999px;
+  background:rgba(0,0,0,.42);
+  border:1px solid rgba(255,255,255,.14);
+  color:#f4f1ea;
+  box-shadow:0 10px 25px rgba(0,0,0,.25);
+}
+@media(max-width:720px){
+  .dashboardTop.fullLogoWatermark{min-height:145px;padding-top:18px}
+  .dashboardTop.fullLogoWatermark::before{inset:6px 8px 0;opacity:.20;background-size:92% auto}
+  .dashboardTop.fullLogoWatermark #roleLabel{margin-top:98px;font-size:10px;padding:7px 12px}
+}
