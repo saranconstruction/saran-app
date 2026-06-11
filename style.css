@@ -1,3 +1,310 @@
-*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f2f2f2;color:#111}.topbar{background:#111;color:#fff;display:flex;align-items:center;gap:14px;padding:14px}.logo{width:76px;height:76px;object-fit:contain;background:#fff;border-radius:12px}h1{margin:0;font-size:24px}p{margin:4px 0}.topbar p{color:#ccc}.tabs{display:flex;gap:8px;overflow:auto;padding:10px;background:#fff;position:sticky;top:0;z-index:5;border-bottom:2px solid #111}.tabs button,button{border:2px solid #111;background:#111;color:#fff;border-radius:10px;padding:12px 14px;font-weight:700;text-transform:uppercase}.tabs button.active{background:#fff;color:#111}.secondary{background:#fff;color:#111}.tab{display:none;padding:14px}.tab.active{display:block}.card{background:#fff;border:2px solid #111;border-radius:14px;padding:14px;margin:12px 0;box-shadow:4px 4px 0 #111}input,select,textarea{width:100%;padding:13px;margin:8px 0;border:2px solid #111;border-radius:10px;background:#fff;font-size:16px}textarea{min-height:80px}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.sectionHead{display:flex;align-items:center;gap:10px;justify-content:space-between}.calendarGrid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}.dayName{font-weight:700;text-align:center;padding:8px}.day{min-height:82px;background:#fff;border:1px solid #999;border-radius:8px;padding:5px;font-size:12px}.day.out{opacity:.35}.dateNum{font-weight:800;font-size:14px}.eventPill{color:#fff;border-radius:7px;padding:4px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.hidden{display:none}.jobRow,.expenseRow,.punchRow,.taskRow{background:#fff;border:2px solid #111;border-radius:12px;margin:10px 0;padding:12px}.rowTop{display:flex;justify-content:space-between;gap:10px;align-items:center}.colorDot{width:18px;height:18px;border-radius:50%;display:inline-block;border:2px solid #111}.danger{background:#8b0000}.timer{font-size:22px;font-weight:800;margin-top:10px;padding:12px;background:#eee;border-radius:10px}.taskRow.done{text-decoration:line-through;opacity:.6}.photoThumb{max-width:120px;border:2px solid #111;border-radius:8px;margin-top:8px}@media(max-width:520px){.calendarGrid{gap:3px}.day{min-height:70px;padding:3px}.eventPill{font-size:10px}.tabs button{padding:10px;font-size:12px}.logo{width:62px;height:62px}}
+/* Saran Construction App V5 - Supabase shared version */
+let sb = null;
+let session = null;
+let profile = null;
+let view = 'today';
+let state = { jobs: [], events: [], tasks: [], time_entries: [], expenses: [], profiles: [] };
+let currentMonth = new Date();
+let activePunchTimer = null;
 
-.hint{color:#555;font-size:14px;margin:6px 0 10px}.checkLine{display:flex;align-items:center;gap:10px;margin:10px 0;font-weight:700}.checkLine input{width:auto;margin:0}.day:nth-child(7n),.day:nth-child(7n+1){background:#e9e9e9}.dayName:nth-child(6),.dayName:nth-child(7){color:#666}
+const $ = (sel) => document.querySelector(sel);
+const main = $('#main');
+const nav = $('#nav');
+const userBar = $('#userBar');
+
+const colors = ['#f472b6','#60a5fa','#facc15','#a78bfa','#34d399','#fb923c','#f87171','#c4b5fd','#93c5fd','#bef264'];
+
+init();
+
+async function init(){
+  try {
+    await initSupabase();
+  } catch(e) {
+    renderConfigError(e.message);
+    return;
+  }
+  const { data } = await sb.auth.getSession();
+  session = data.session;
+  sb.auth.onAuthStateChange(async (_event, s) => { session = s; await boot(); });
+  await boot();
+}
+
+async function initSupabase(){
+  const res = await fetch('/api/config');
+  if(!res.ok) throw new Error('Config Vercel introuvable. Vérifie api/config.js et tes variables Vercel.');
+  const cfg = await res.json();
+  if(!cfg.supabaseUrl || !cfg.supabaseKey) throw new Error('Variables Supabase manquantes dans Vercel.');
+  sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
+}
+
+async function boot(){
+  if(!session){ renderLogin(); return; }
+  await ensureProfile();
+  await loadAll();
+  renderApp();
+}
+
+function renderConfigError(msg){
+  main.innerHTML = `<section class="card"><h1>Configuration requise</h1><p>${escapeHtml(msg)}</p><p class="muted">Dans Vercel, ajoute NEXT_PUBLIC_SUPABASE_URL et NEXT_PUBLIC_SUPABASE_ANON_KEY, puis redeploy. Assure-toi aussi d'avoir uploadé le dossier <b>api</b>.</p></section>`;
+}
+
+function renderLogin(){
+  nav.classList.add('hidden'); userBar.classList.add('hidden');
+  main.innerHTML = `<section class="card"><h1>Connexion</h1><p class="muted">Connexion Jesse / Karl avec Supabase.</p>
+    <input id="email" type="email" placeholder="Courriel" autocomplete="email">
+    <input id="password" type="password" placeholder="Mot de passe" autocomplete="current-password">
+    <div class="row"><button class="primary" onclick="login()">Connexion</button><button onclick="signup()">Créer compte</button></div>
+    <p class="muted">Première connexion : crée ton compte Jesse, puis crée Karl avec son courriel. Le premier compte devient admin automatiquement.</p>
+  </section>
+  <section class="card"><h2>Avant de continuer</h2><p>Tu dois avoir exécuté <b>schema.sql</b> dans Supabase SQL Editor.</p></section>`;
+}
+
+async function signup(){
+  const email = $('#email').value.trim(); const password = $('#password').value;
+  if(!email || !password) return toast('Entre un courriel et mot de passe.');
+  const { error } = await sb.auth.signUp({ email, password });
+  if(error) return toast(error.message);
+  toast('Compte créé. Vérifie ton courriel si Supabase demande confirmation, sinon connecte-toi.');
+}
+
+async function login(){
+  const email = $('#email').value.trim(); const password = $('#password').value;
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if(error) return toast(error.message);
+}
+
+async function logout(){ await sb.auth.signOut(); }
+
+async function ensureProfile(){
+  const user = session.user;
+  const { data: existing, error } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
+  if(error && !String(error.message).includes('JSON')) console.warn(error);
+  if(existing){ profile = existing; return; }
+  const { count } = await sb.from('profiles').select('*', { count:'exact', head:true });
+  const role = (count === 0 || (user.email||'').toLowerCase().includes('jesse')) ? 'admin' : 'employee';
+  const { data, error: insErr } = await sb.from('profiles').insert({ id:user.id, email:user.email, full_name: guessName(user.email), role }).select().single();
+  if(insErr) throw insErr;
+  profile = data;
+}
+
+async function loadAll(){
+  const [jobs, events, tasks, entries, expenses, profiles] = await Promise.all([
+    sb.from('jobs').select('*').order('created_at',{ascending:false}),
+    sb.from('events').select('*').order('event_date',{ascending:true}),
+    sb.from('tasks').select('*').order('created_at',{ascending:true}),
+    sb.from('time_entries').select('*').order('punch_in',{ascending:false}),
+    sb.from('expenses').select('*').order('created_at',{ascending:false}),
+    sb.from('profiles').select('*').order('created_at',{ascending:true})
+  ]);
+  for(const r of [jobs,events,tasks,entries,expenses,profiles]) if(r.error) throw r.error;
+  state.jobs = jobs.data||[]; state.events = events.data||[]; state.tasks = tasks.data||[]; state.time_entries = entries.data||[]; state.expenses = expenses.data||[]; state.profiles = profiles.data||[];
+}
+
+function renderApp(){
+  nav.classList.remove('hidden'); userBar.classList.remove('hidden');
+  userBar.innerHTML = `<div><b>${escapeHtml(profile.full_name||profile.email)}</b><br><span class="muted">${profile.role === 'admin' ? 'Admin' : 'Employé'}</span></div><button class="small" onclick="logout()">Déconnexion</button>`;
+  nav.querySelectorAll('button').forEach(b=>{ b.classList.toggle('active', b.dataset.view===view); b.onclick=()=>{view=b.dataset.view; renderApp();}; });
+  if(view==='today') renderToday();
+  if(view==='calendar') renderCalendar();
+  if(view==='jobs') renderJobs();
+  if(view==='punch') renderPunch();
+  if(view==='expenses') renderExpenses();
+}
+
+function renderToday(){
+  const today = toDateInput(new Date());
+  const events = state.events.filter(e=>e.event_date===today);
+  const openPunch = getOpenPunch();
+  main.innerHTML = `<section class="card"><h1>Aujourd'hui</h1><p class="muted">${formatDate(today)}</p>
+    ${openPunch ? `<p class="pill">⏱ Punch actif: ${jobName(openPunch.job_id)} — <b id="liveTimer">...</b></p>` : ''}
+    <div class="grid"><button onclick="view='calendar';renderApp()">📅 Calendrier</button><button onclick="view='punch';renderApp()">⏱ Punch</button><button onclick="view='expenses';renderApp()">💵 Dépense</button><button onclick="view='jobs';renderApp()">🛠 Chantier</button></div></section>
+    <section class="card"><h2>Jobs du jour</h2>${events.length?events.map(eventHtml).join(''):'<p class="muted">Rien au calendrier aujourd’hui.</p>'}</section>
+    <section class="card"><h2>Tâches du jour</h2>${taskListHtml(null,today)}</section>`;
+  startTimer();
+}
+
+function renderCalendar(){
+  const y = currentMonth.getFullYear(), m = currentMonth.getMonth();
+  const first = new Date(y,m,1); const startOffset = (first.getDay()+6)%7; // Monday first
+  const start = new Date(y,m,1-startOffset);
+  let html = `<section class="card"><div class="calendar-head"><button class="small" onclick="changeMonth(-1)">‹</button><h1>${monthName(currentMonth)} ${y}</h1><button class="small" onclick="changeMonth(1)">›</button></div>
+  <div class="grid"><button class="primary" onclick="openEventModal()">+ Événement</button><button onclick="openMultiDateModal()">+ Chantier multi-dates</button></div>
+  <div class="cal-grid">${['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'].map(d=>`<div class="cal-dayname">${d}</div>`).join('')}`;
+  for(let i=0;i<42;i++){
+    const d = new Date(start); d.setDate(start.getDate()+i); const ds=toDateInput(d);
+    const evs = state.events.filter(e=>e.event_date===ds);
+    const cls = `${d.getMonth()!==m?'muted ':''}${[0,6].includes(d.getDay())?'weekend ':''}${ds===toDateInput(new Date())?'today':''}`;
+    html += `<div class="cal-cell ${cls}" onclick="openDay('${ds}')"><div class="cal-date">${d.getDate()}</div>${evs.slice(0,3).map(e=>`<div class="event-chip" style="background:${e.color||'#ddd'}">${escapeHtml(e.title)}</div>`).join('')}${evs.length>3?`<div class="muted">+${evs.length-3}</div>`:''}</div>`;
+  }
+  html += `</div></section>`;
+  main.innerHTML = html;
+}
+function changeMonth(delta){ currentMonth.setMonth(currentMonth.getMonth()+delta); renderApp(); }
+
+function openDay(date){
+  const evs = state.events.filter(e=>e.event_date===date);
+  modal(`<h1>${formatDate(date)}</h1><div class="grid"><button class="primary" onclick="closeModal();openEventModal('${date}')">+ Événement</button><button onclick="closeModal();openTaskModal(null,'${date}')">+ Tâche</button></div>
+  <h2>Calendrier</h2>${evs.length?evs.map(eventHtml).join(''):'<p class="muted">Aucun événement.</p>'}
+  <h2>Checklist</h2>${taskListHtml(null,date)}<button onclick="closeModal()">Fermer</button>`);
+}
+
+function eventHtml(e){
+  const tasks = state.tasks.filter(t=>t.event_id===e.id);
+  return `<div class="list-item" style="border-left:10px solid ${e.color||'#999'}"><b>${escapeHtml(e.title)}</b><br><span class="muted">${formatDate(e.event_date)} • ${e.start_time||''} • ${jobName(e.job_id)}</span><p>${escapeHtml(e.notes||'')}</p>
+  <div>${tasks.map(t=>`<span class="pill">${t.done?'✅':'⬜'} ${escapeHtml(t.title)}</span>`).join('')}</div>
+  <div class="row"><button class="small" onclick="openTaskModal('${e.id}','${e.event_date}')">+ Tâche</button><button class="small" onclick="openEventModal('${e.event_date}','${e.id}')">Modifier</button>${profile.role==='admin'?`<button class="small danger" onclick="deleteEventAsk('${e.id}')">Supprimer</button>`:''}</div></div>`;
+}
+
+function openEventModal(date=toDateInput(new Date()), id=null){
+  const e = id ? state.events.find(x=>x.id===id) : null;
+  const jobOptions = `<option value="">Aucun chantier lié</option>`+state.jobs.map(j=>`<option value="${j.id}" ${e?.job_id===j.id?'selected':''}>${escapeHtml(j.name)}</option>`).join('');
+  modal(`<h1>${id?'Modifier':'Événement'}</h1>
+    <select id="evJob" onchange="fillEventFromJob()">${jobOptions}</select>
+    <input id="evTitle" placeholder="Titre" value="${escapeAttr(e?.title||'')}">
+    <input id="evDate" type="date" value="${e?.event_date||date}">
+    <input id="evStart" type="time" value="${e?.start_time||'07:00'}">
+    <select id="evType"><option value="chantier">Chantier</option><option value="appel">Appel</option><option value="livraison">Livraison</option><option value="commande">Commande</option><option value="autre">Autre</option></select>
+    <textarea id="evNotes" placeholder="Notes">${escapeHtml(e?.notes||'')}</textarea>
+    <div class="row"><button class="primary" onclick="saveEvent('${id||''}')">Sauvegarder</button><button onclick="closeModal()">Fermer</button></div>`);
+  if(e) $('#evType').value = e.type||'chantier';
+}
+function fillEventFromJob(){
+  const j = state.jobs.find(x=>x.id===$('#evJob').value); if(!j) return;
+  $('#evTitle').value = `${j.name} — chantier`; $('#evNotes').value = [j.address,j.notes].filter(Boolean).join(' • ');
+}
+async function saveEvent(id){
+  const job = state.jobs.find(j=>j.id===$('#evJob').value);
+  const payload = { job_id: $('#evJob').value || null, title: $('#evTitle').value.trim(), event_date: $('#evDate').value, start_time: $('#evStart').value, type: $('#evType').value, notes: $('#evNotes').value.trim(), color: job?.color || '#9ca3af', created_by: session.user.id };
+  if(!payload.title || !payload.event_date) return toast('Titre et date requis.');
+  const q = id ? sb.from('events').update(payload).eq('id',id) : sb.from('events').insert(payload);
+  const { error } = await q; if(error) return toast(error.message);
+  closeModal(); await loadAll(); renderApp(); toast('Sauvegardé.');
+}
+
+function openMultiDateModal(){
+  if(!state.jobs.length) return toast('Crée un chantier avant.');
+  modal(`<h1>Chantier multi-dates</h1>
+    <select id="mdJob">${state.jobs.map(j=>`<option value="${j.id}">${escapeHtml(j.name)}</option>`).join('')}</select>
+    <div class="row"><input id="mdStart" type="date" value="${toDateInput(new Date())}"><input id="mdEnd" type="date" value="${toDateInput(new Date())}"></div>
+    <input id="mdTime" type="time" value="07:00">
+    <label class="pill"><input id="mdWeekends" type="checkbox"> Inclure samedi/dimanche</label>
+    <div class="row"><button class="primary" onclick="saveMultiDate()">Ajouter</button><button onclick="closeModal()">Fermer</button></div>`);
+}
+async function saveMultiDate(){
+  const j = state.jobs.find(x=>x.id===$('#mdJob').value); if(!j) return;
+  const start = new Date($('#mdStart').value+'T12:00:00'); const end = new Date($('#mdEnd').value+'T12:00:00');
+  if(end < start) return toast('Date de fin invalide.');
+  const includeWeekends = $('#mdWeekends').checked; const series = `SERIE-${Date.now()}`; const rows=[];
+  for(let d=new Date(start); d<=end; d.setDate(d.getDate()+1)){
+    if(!includeWeekends && [0,6].includes(d.getDay())) continue;
+    rows.push({ job_id:j.id, title:`${j.name} — chantier`, event_date:toDateInput(d), start_time:$('#mdTime').value, type:'chantier', notes:[j.address,j.notes].filter(Boolean).join(' • '), color:j.color, series_id:series, created_by:session.user.id });
+  }
+  if(!rows.length) return toast('Aucune date à ajouter.');
+  const { error } = await sb.from('events').insert(rows); if(error) return toast(error.message);
+  closeModal(); await loadAll(); renderApp(); toast(`${rows.length} journées ajoutées.`);
+}
+async function deleteEventAsk(id){
+  const e = state.events.find(x=>x.id===id); if(!e) return;
+  if(e.series_id && confirm('Supprimer toute la série multi-dates? OK = série complète, Annuler = seulement cette journée.')){
+    const { error } = await sb.from('events').delete().eq('series_id', e.series_id); if(error) return toast(error.message);
+  } else {
+    const { error } = await sb.from('events').delete().eq('id', id); if(error) return toast(error.message);
+  }
+  await loadAll(); renderApp(); toast('Supprimé.');
+}
+
+function renderJobs(){
+  main.innerHTML = `<section class="card"><h1>Chantiers</h1>${profile.role==='admin'?'<button class="primary" onclick="openJobModal()">+ Créer chantier</button>':''}${state.jobs.map(jobHtml).join('')||'<p class="muted">Aucun chantier.</p>'}</section>`;
+}
+function jobHtml(j){
+  const total = state.expenses.filter(e=>e.job_id===j.id).reduce((s,e)=>s+Number(e.amount||0),0);
+  return `<div class="list-item"><span class="dot" style="background:${j.color}"></span> <b>${escapeHtml(j.name)}</b><br><span class="muted">${escapeHtml(j.address||'Adresse à ajouter')}</span><p>${escapeHtml(j.notes||'')}</p><b>Dépenses: ${money(total)}</b><br><span class="pill">${state.events.filter(e=>e.job_id===j.id).length} dates</span><span class="pill">${state.tasks.filter(t=>t.job_id===j.id).length} tâches</span><div class="row">${profile.role==='admin'?`<button class="small" onclick="openJobModal('${j.id}')">Modifier</button><button class="small danger" onclick="deleteJob('${j.id}')">Supprimer chantier complet</button>`:''}</div></div>`;
+}
+function openJobModal(id=null){
+  const j = id ? state.jobs.find(x=>x.id===id) : null;
+  modal(`<h1>${id?'Modifier':'Nouveau chantier'}</h1><input id="jobName" placeholder="Nom du client / chantier" value="${escapeAttr(j?.name||'')}"><input id="jobAddress" placeholder="Adresse" value="${escapeAttr(j?.address||'')}"><input id="jobPhone" placeholder="Téléphone" value="${escapeAttr(j?.phone||'')}"><textarea id="jobNotes" placeholder="Notes">${escapeHtml(j?.notes||'')}</textarea><select id="jobColor">${colors.map(c=>`<option value="${c}" ${j?.color===c?'selected':''}>${c}</option>`).join('')}</select><div class="row"><button class="primary" onclick="saveJob('${id||''}')">Sauvegarder</button><button onclick="closeModal()">Fermer</button></div>`);
+}
+async function saveJob(id){
+  const payload = { name:$('#jobName').value.trim(), address:$('#jobAddress').value.trim(), phone:$('#jobPhone').value.trim(), notes:$('#jobNotes').value.trim(), color:$('#jobColor').value, created_by:session.user.id };
+  if(!payload.name) return toast('Nom requis.');
+  const q = id ? sb.from('jobs').update(payload).eq('id',id) : sb.from('jobs').insert(payload);
+  const { error } = await q; if(error) return toast(error.message);
+  closeModal(); await loadAll(); renderApp();
+}
+async function deleteJob(id){
+  if(!confirm('Supprimer ce chantier complet, ses dates, ses tâches et ses liens?')) return;
+  await sb.from('tasks').delete().eq('job_id',id); await sb.from('events').delete().eq('job_id',id); await sb.from('expenses').update({job_id:null}).eq('job_id',id); await sb.from('time_entries').update({job_id:null}).eq('job_id',id);
+  const { error } = await sb.from('jobs').delete().eq('id',id); if(error) return toast(error.message);
+  await loadAll(); renderApp(); toast('Chantier supprimé.');
+}
+
+function taskListHtml(eventId=null,date=null){
+  let tasks = state.tasks.filter(t => eventId ? t.event_id===eventId : (date ? t.task_date===date && !t.event_id : false));
+  return `<div>${tasks.map(t=>`<label class="task ${t.done?'done':''}"><input type="checkbox" ${t.done?'checked':''} onchange="toggleTask('${t.id}',this.checked)"><span>${escapeHtml(t.title)}</span></label>`).join('')||'<p class="muted">Aucune tâche.</p>'}</div>`;
+}
+function openTaskModal(eventId=null,date=toDateInput(new Date())){
+  const e = eventId ? state.events.find(x=>x.id===eventId) : null;
+  modal(`<h1>Ajouter tâche</h1><input id="taskTitle" placeholder="Ex: installer solives, commander PVC, nettoyer"><div class="row"><button class="primary" onclick="saveTask('${eventId||''}','${date}')">Ajouter</button><button onclick="closeModal()">Fermer</button></div>`);
+}
+async function saveTask(eventId,date){
+  const e = eventId ? state.events.find(x=>x.id===eventId) : null;
+  const payload = { event_id:eventId||null, job_id:e?.job_id||null, task_date:date, title:$('#taskTitle').value.trim(), created_by:session.user.id };
+  if(!payload.title) return toast('Titre requis.');
+  const { error } = await sb.from('tasks').insert(payload); if(error) return toast(error.message);
+  closeModal(); await loadAll(); renderApp(); toast('Tâche ajoutée.');
+}
+async function toggleTask(id,done){ const {error}=await sb.from('tasks').update({done}).eq('id',id); if(error) toast(error.message); await loadAll(); }
+
+function renderPunch(){
+  const open = getOpenPunch(); const week = entriesThisWeek();
+  main.innerHTML = `<section class="card"><h1>Punch</h1>${open?punchOutHtml(open):punchInHtml()}</section><section class="card"><h2>Mes heures cette semaine</h2>${timeSummaryHtml(week)}</section>${profile.role==='admin'?`<section class="card"><h2>Paie / Admin</h2>${timeAdminHtml()}</section>`:''}`;
+  startTimer();
+}
+function punchInHtml(){ return `<select id="punchJob">${state.jobs.map(j=>`<option value="${j.id}">${escapeHtml(j.name)}</option>`).join('')}</select><button class="primary" onclick="punchIn()">Punch In</button>`; }
+function punchOutHtml(e){ return `<p class="pill">Chantier: ${jobName(e.job_id)}</p><p>Début: ${new Date(e.punch_in).toLocaleTimeString('fr-CA',{hour:'2-digit',minute:'2-digit'})}</p><h2 id="liveTimer">...</h2><textarea id="punchNote" placeholder="Note de journée"></textarea><button class="primary" onclick="punchOut('${e.id}')">Punch Out</button><p class="muted">30 min de dîner est retiré automatiquement après 5h travaillées.</p>`; }
+async function punchIn(){
+  const job_id=$('#punchJob').value; if(!job_id) return toast('Choisis un chantier.');
+  const {error}=await sb.from('time_entries').insert({user_id:session.user.id, job_id, punch_in:new Date().toISOString()}); if(error)return toast(error.message);
+  await loadAll(); renderApp();
+}
+async function punchOut(id){
+  const entry=state.time_entries.find(e=>e.id===id); const out=new Date(); const mins=Math.max(0,Math.round((out-new Date(entry.punch_in))/60000)); const lunch=mins>=300?30:0; const paid=Math.max(0,mins-lunch);
+  const {error}=await sb.from('time_entries').update({punch_out:out.toISOString(), lunch_minutes:lunch, paid_minutes:paid, note:$('#punchNote')?.value||''}).eq('id',id); if(error)return toast(error.message);
+  await loadAll(); renderApp(); toast(`Temps payé: ${minutes(paid)}`);
+}
+function getOpenPunch(){ return state.time_entries.find(e=>e.user_id===session.user.id && !e.punch_out); }
+function entriesThisWeek(){ const now=new Date(); const monday=new Date(now); monday.setDate(now.getDate()-((now.getDay()+6)%7)); monday.setHours(0,0,0,0); return state.time_entries.filter(e=>e.user_id===session.user.id && new Date(e.punch_in)>=monday); }
+function timeSummaryHtml(entries){ const total=entries.reduce((s,e)=>s+Number(e.paid_minutes||0),0); return `${entries.map(e=>`<div class="list-item"><b>${formatDate(toDateInput(new Date(e.punch_in)))}</b><br>${jobName(e.job_id)}<br><span class="muted">${timeOnly(e.punch_in)} → ${e.punch_out?timeOnly(e.punch_out):'en cours'} | payé: ${minutes(e.paid_minutes||0)}</span></div>`).join('')||'<p class="muted">Aucune heure.</p>'}<h2>Total: ${minutes(total)}</h2>`; }
+function timeAdminHtml(){ const byUser={}; state.time_entries.forEach(e=>{ const email=profileEmail(e.user_id); byUser[email]=byUser[email]||0; byUser[email]+=Number(e.paid_minutes||0); }); return Object.entries(byUser).map(([u,m])=>`<div class="pill">${escapeHtml(u)}: <b>${minutes(m)}</b></div>`).join('')||'<p class="muted">Aucune heure.</p>'; }
+function startTimer(){ clearInterval(activePunchTimer); function tick(){ const open=getOpenPunch(); const el=$('#liveTimer'); if(open&&el){ const mins=Math.max(0,Math.floor((new Date()-new Date(open.punch_in))/60000)); el.textContent=minutes(mins); } } tick(); activePunchTimer=setInterval(tick,30000); }
+
+function renderExpenses(){
+  main.innerHTML = `<section class="card"><h1>Dépenses</h1><button class="primary" onclick="openExpenseModal()">+ Ajouter dépense</button>${state.expenses.map(expenseHtml).join('')||'<p class="muted">Aucune dépense.</p>'}</section>`;
+}
+function expenseHtml(e){ return `<div class="list-item"><b>${escapeHtml(e.supplier||'Fournisseur')}</b> — ${money(e.amount)}<br><span class="muted">${jobName(e.job_id)} • ${formatDate(e.expense_date)}</span><p>${escapeHtml(e.description||'')}</p>${e.receipt_data?`<img class="photo-preview" src="${e.receipt_data}" alt="Reçu">`:''}${profile.role==='admin'?`<button class="small danger" onclick="deleteExpense('${e.id}')">Supprimer</button>`:''}</div>`; }
+function openExpenseModal(){
+  modal(`<h1>Nouvelle dépense</h1><select id="exJob"><option value="">Aucun chantier</option>${state.jobs.map(j=>`<option value="${j.id}">${escapeHtml(j.name)}</option>`).join('')}</select><input id="exSupplier" placeholder="Fournisseur"><input id="exAmount" type="number" step="0.01" placeholder="Montant"><input id="exDesc" placeholder="C'est quoi qui est acheté?"><select id="exCat"><option>matériaux</option><option>essence</option><option>location</option><option>sous-traitant</option><option>autre</option></select><input id="exDate" type="date" value="${toDateInput(new Date())}"><input id="exPhoto" type="file" accept="image/*" capture="environment"><div class="row"><button class="primary" onclick="saveExpense()">Sauvegarder</button><button onclick="closeModal()">Fermer</button></div>`);
+}
+async function saveExpense(){
+  const file=$('#exPhoto').files[0]; let receipt_data=null; if(file) receipt_data=await fileToDataUrl(file,900);
+  const payload={ user_id:session.user.id, job_id:$('#exJob').value||null, supplier:$('#exSupplier').value.trim(), amount:Number($('#exAmount').value||0), description:$('#exDesc').value.trim(), category:$('#exCat').value, expense_date:$('#exDate').value, receipt_data };
+  const {error}=await sb.from('expenses').insert(payload); if(error)return toast(error.message);
+  closeModal(); await loadAll(); renderApp();
+}
+async function deleteExpense(id){ if(!confirm('Supprimer cette dépense?'))return; const {error}=await sb.from('expenses').delete().eq('id',id); if(error)return toast(error.message); await loadAll(); renderApp(); }
+
+function modal(html){ const div=document.createElement('div'); div.className='modal'; div.id='modal'; div.innerHTML=`<section class="card">${html}</section>`; document.body.appendChild(div); }
+function closeModal(){ $('#modal')?.remove(); }
+function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),3500); }
+function jobName(id){ return state.jobs.find(j=>j.id===id)?.name || 'Aucun chantier'; }
+function profileEmail(id){ return state.profiles.find(p=>p.id===id)?.email || id?.slice(0,8) || 'Inconnu'; }
+function guessName(email){ return (email||'').split('@')[0].replace(/[._-]/g,' ').replace(/\b\w/g,c=>c.toUpperCase()); }
+function toDateInput(d){ return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
+function formatDate(d){ return new Date(d+'T12:00:00').toLocaleDateString('fr-CA',{weekday:'long',day:'numeric',month:'long',year:'numeric'}); }
+function monthName(d){ return d.toLocaleDateString('fr-CA',{month:'long'}).toUpperCase(); }
+function timeOnly(iso){ return new Date(iso).toLocaleTimeString('fr-CA',{hour:'2-digit',minute:'2-digit'}); }
+function minutes(m){ const h=Math.floor(m/60), mm=m%60; return `${h}h${String(mm).padStart(2,'0')}`; }
+function money(n){ return Number(n||0).toLocaleString('fr-CA',{style:'currency',currency:'CAD'}); }
+function escapeHtml(s){ return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function escapeAttr(s){ return escapeHtml(s).replace(/'/g,'&#39;'); }
+function fileToDataUrl(file,maxW=900){ return new Promise((resolve)=>{ const img=new Image(); const r=new FileReader(); r.onload=()=>{ img.onload=()=>{ const scale=Math.min(1,maxW/img.width); const c=document.createElement('canvas'); c.width=Math.round(img.width*scale); c.height=Math.round(img.height*scale); c.getContext('2d').drawImage(img,0,0,c.width,c.height); resolve(c.toDataURL('image/jpeg',.72)); }; img.src=r.result; }; r.readAsDataURL(file); }); }
