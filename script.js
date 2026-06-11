@@ -1,1 +1,111 @@
-let supabaseClient=null,user=null,jobs=[],events=[],timeEntries=[],expenses=[];let currentMonth=new Date();let activePunch=null;const $=id=>document.getElementById(id);function iso(d){return d.toISOString().slice(0,10)}function today(){return iso(new Date())}async function init(){try{const cfg=await fetch('/api/config').then(r=>r.json());if(!cfg.supabaseUrl||!cfg.supabaseKey)throw new Error('Config Supabase manquante');supabaseClient=supabase.createClient(cfg.supabaseUrl,cfg.supabaseKey);}catch(e){alert('Supabase non configuré: '+e.message);return}const {data}=await supabaseClient.auth.getUser();user=data.user;wire();if(user){showApp();await loadAll()}else showLogin()}function wire(){$('loginBtn').onclick=login;$('signupBtn').onclick=signup;document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));$('saveJobBtn').onclick=saveJob;$('prevMonth').onclick=()=>{currentMonth.setMonth(currentMonth.getMonth()-1);renderCalendar()};$('nextMonth').onclick=()=>{currentMonth.setMonth(currentMonth.getMonth()+1);renderCalendar()};$('addEventBtn').onclick=()=>openEvent(today());$('closeEventBtn').onclick=()=>$('eventDialog').close();$('saveEventBtn').onclick=saveEvent;$('multiDateBtn').onclick=()=>{$('multiStart').value=today();$('multiEnd').value=today();$('multiDialog').showModal()};$('closeMultiBtn').onclick=()=>$('multiDialog').close();$('saveMultiBtn').onclick=saveMulti;$('punchInBtn').onclick=punchIn;$('punchOutBtn').onclick=punchOut;$('saveExpenseBtn').onclick=saveExpense}function showLogin(){$('loginView').classList.remove('hidden');$('mainView').classList.add('hidden')}function showApp(){$('loginView').classList.add('hidden');$('mainView').classList.remove('hidden');$('userBar').innerHTML=`Connecté: ${user.email} <button class="secondary" onclick="logout()">Déconnexion</button>`}async function signup(){const email=$('email').value.trim(),password=$('password').value;if(!email||!password)return alert('Entre courriel et mot de passe');const {data,error}=await supabaseClient.auth.signUp({email,password});if(error)return alert(error.message);user=data.user;if(user){await supabaseClient.from('profiles').upsert({id:user.id,email:user.email,name:user.email.split('@')[0],role:'employee'});showApp();await loadAll()}else alert('Compte créé. Vérifie tes courriels si Supabase demande une confirmation.')}async function login(){const {data,error}=await supabaseClient.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error)return alert(error.message);user=data.user;showApp();await loadAll()}async function logout(){await supabaseClient.auth.signOut();location.reload()}async function loadAll(){let r=await supabaseClient.from('jobs').select('*').order('created_at');jobs=r.data||[];r=await supabaseClient.from('events').select('*').order('event_date');events=r.data||[];r=await supabaseClient.from('time_entries').select('*').order('clock_in',{ascending:false});timeEntries=r.data||[];r=await supabaseClient.from('expenses').select('*').order('created_at',{ascending:false});expenses=r.data||[];activePunch=timeEntries.find(t=>t.user_id===user.id&&!t.clock_out)||null;renderAll()}function renderAll(){fillJobSelects();renderJobs();renderCalendar();renderToday();renderPunch();renderExpenses()}function setTab(t){document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));document.querySelectorAll('.tab').forEach(s=>s.classList.remove('active'));$('tab-'+t).classList.add('active')}function fillJobSelects(){['eventJob','multiJob','punchJob','expenseJob'].forEach(id=>{const s=$(id);s.innerHTML='<option value="">Aucun chantier</option>'+jobs.map(j=>`<option value="${j.id}">${j.name}</option>`).join('')})}async function saveJob(){const name=$('jobName').value.trim();if(!name)return alert('Nom requis');const obj={name,address:$('jobAddress').value,phone:$('jobPhone').value,notes:$('jobNotes').value,color:$('jobColor').value,created_by:user.id};const {error}=await supabaseClient.from('jobs').insert(obj);if(error)return alert(error.message);['jobName','jobAddress','jobPhone','jobNotes'].forEach(id=>$(id).value='');await loadAll()}function renderJobs(){$('jobsList').innerHTML=jobs.map(j=>`<div class="job-card"><h2><span style="color:${j.color}">●</span> ${j.name}</h2><p>${j.address||'Adresse à ajouter'}</p><p>${j.notes||''}</p><button class="secondary" onclick="deleteJob('${j.id}')">Supprimer chantier</button></div>`).join('')}async function deleteJob(id){if(!confirm('Supprimer ce chantier? Les événements resteront sans chantier lié.'))return;await supabaseClient.from('jobs').delete().eq('id',id);await loadAll()}function renderCalendar(){const y=currentMonth.getFullYear(),m=currentMonth.getMonth();$('monthTitle').textContent=currentMonth.toLocaleDateString('fr-CA',{month:'long',year:'numeric'}).toUpperCase();const first=new Date(y,m,1),start=new Date(first);start.setDate(first.getDate()-((first.getDay()+6)%7));let html='';for(let i=0;i<42;i++){const d=new Date(start);d.setDate(start.getDate()+i);const ds=iso(d);const dayEvents=events.filter(e=>e.event_date===ds);html+=`<div class="day ${d.getMonth()!==m?'muted':''}" onclick="openEvent('${ds}')"><div class="date-num">${d.getDate()}</div>${dayEvents.map(e=>{const j=jobs.find(x=>x.id===e.job_id);return `<span class="pill" style="background:${j?.color||'#eee'}">${e.title}</span>`}).join('')}</div>`} $('calendarGrid').innerHTML=html}function openEvent(date){$('eventDate').value=date;$('eventTitle').value='';$('eventNotes').value='';$('eventJob').value='';$('eventDialog').showModal()}async function saveEvent(){const title=$('eventTitle').value.trim();if(!title)return alert('Titre requis');const job_id=$('eventJob').value||null;await supabaseClient.from('events').insert({title,event_date:$('eventDate').value,job_id,notes:$('eventNotes').value,created_by:user.id});$('eventDialog').close();await loadAll()}async function saveMulti(){const job=jobs.find(j=>j.id===$('multiJob').value);if(!job)return alert('Choisis un chantier');let d=new Date($('multiStart').value+'T12:00:00'),end=new Date($('multiEnd').value+'T12:00:00');const rows=[],sid=crypto.randomUUID();while(d<=end){const day=d.getDay();if($('includeWeekends').checked||!(day===0||day===6)){rows.push({title:job.name,event_date:iso(d),job_id:job.id,notes:job.notes,series_id:sid,created_by:user.id})}d.setDate(d.getDate()+1)}if(rows.length)await supabaseClient.from('events').insert(rows);$('multiDialog').close();await loadAll()}function renderToday(){const list=events.filter(e=>e.event_date===today());$('todayList').innerHTML=list.length?list.map(e=>`<p><b>${e.title}</b><br>${jobs.find(j=>j.id===e.job_id)?.address||''}</p>`).join(''):'<p>Aucun événement aujourd’hui.</p>'}async function punchIn(){const job_id=$('punchJob').value;if(!job_id)return alert('Choisis un chantier');if(activePunch)return alert('Tu es déjà punché');await supabaseClient.from('time_entries').insert({user_id:user.id,job_id,clock_in:new Date().toISOString(),lunch_minutes:30});await loadAll()}async function punchOut(){if(!activePunch)return alert('Aucun punch actif');await supabaseClient.from('time_entries').update({clock_out:new Date().toISOString()}).eq('id',activePunch.id);await loadAll()}function paidHours(t){if(!t.clock_out)return 'En cours';let ms=new Date(t.clock_out)-new Date(t.clock_in),h=ms/36e5;if(h>5)h-=0.5;return h.toFixed(2)+' h'}function renderPunch(){$('timer').innerHTML=activePunch?`<h2>En cours depuis ${new Date(activePunch.clock_in).toLocaleTimeString('fr-CA')}</h2>`:'<p>Aucun punch actif.</p>';$('timeList').innerHTML=timeEntries.map(t=>`<div class="time-entry"><b>${jobs.find(j=>j.id===t.job_id)?.name||'Chantier'}</b><br>${new Date(t.clock_in).toLocaleString('fr-CA')} → ${t.clock_out?new Date(t.clock_out).toLocaleTimeString('fr-CA'):'en cours'}<br>Payé: ${paidHours(t)}</div>`).join('')}async function saveExpense(){const job_id=$('expenseJob').value||null;const file=$('receiptPhoto').files[0];await supabaseClient.from('expenses').insert({user_id:user.id,job_id,supplier:$('supplier').value,amount:Number($('amount').value||0),description:$('description').value,receipt_name:file?file.name:null});['supplier','amount','description'].forEach(id=>$(id).value='');$('receiptPhoto').value='';await loadAll()}function renderExpenses(){$('expensesList').innerHTML=expenses.map(e=>`<div class="expense"><b>${e.supplier||'Fournisseur'}</b> — ${e.amount||0}$<br>${jobs.find(j=>j.id===e.job_id)?.name||''}<br>${e.description||''}${e.receipt_name?'<br>Photo: '+e.receipt_name:''}</div>`).join('')}init();
+const KEY='saranAppV4';
+const $=id=>document.getElementById(id);
+const todayISO=()=>new Date().toISOString().slice(0,10);
+let state=load(); let currentMonth=new Date(); let editingJobId=null; let selectedDate=todayISO(); let timerInt=null;
+function load(){try{const s=JSON.parse(localStorage.getItem(KEY)); if(s&&s.jobs)return s;}catch(e){} return {jobs:[],events:[],tasks:[],punches:[],expenses:[],activePunch:null,user:'jesse'};}
+function save(){localStorage.setItem(KEY,JSON.stringify(state)); renderAll();}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function fmtDT(ts){return new Date(ts).toLocaleString('fr-CA',{dateStyle:'short',timeStyle:'short'})}
+function minutesBetween(a,b){return Math.round((new Date(b)-new Date(a))/60000)}
+function paidMinutes(start,end){const m=minutesBetween(start,end); return Math.max(0,m-(m>=300?30:0));}
+function h(min){return (min/60).toFixed(2)+' h'}
+
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tabs button,.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');$(b.dataset.tab).classList.add('active');renderAll();});
+$('userSelect').onchange=e=>{state.user=e.target.value;save()};
+function applyRole(){const admin=state.user==='jesse';$('roleLabel').textContent=admin?'Mode Admin':'Mode Employé';$('userSelect').value=state.user;document.querySelectorAll('.adminOnly').forEach(el=>el.style.display=admin?'':'none');}
+
+function renderSelects(){const selects=['multiJob','punchJob','expenseJob']; selects.forEach(id=>{const el=$(id); if(!el)return; const val=el.value; el.innerHTML='<option value="">Choisir chantier</option>'+state.jobs.map(j=>`<option value="${j.id}">${j.name}</option>`).join(''); el.value=val;});}
+function jobById(id){return state.jobs.find(j=>j.id===id)}
+
+$('saveJob').onclick=()=>{const name=$('jobName').value.trim(); if(!name)return alert('Nom du chantier obligatoire'); const data={name,address:$('jobAddress').value.trim(),phone:$('jobPhone').value.trim(),notes:$('jobNotes').value.trim(),color:$('jobColor').value}; if(editingJobId){Object.assign(jobById(editingJobId),data);}else{state.jobs.push({id:uid(),...data});} clearJob(); save();};
+$('clearJobForm').onclick=clearJob; function clearJob(){editingJobId=null;['jobName','jobAddress','jobPhone','jobNotes'].forEach(id=>$(id).value='');$('jobColor').value='#444444'}
+function editJob(id){const j=jobById(id); editingJobId=id; $('jobName').value=j.name;$('jobAddress').value=j.address||'';$('jobPhone').value=j.phone||'';$('jobNotes').value=j.notes||'';$('jobColor').value=j.color||'#444444'; document.querySelector('[data-tab="jobs"]').click();}
+function deleteJob(id){if(!confirm('Supprimer ce chantier complet, ses événements calendrier, tâches, dépenses et punchs liés?'))return; state.jobs=state.jobs.filter(j=>j.id!==id); state.events=state.events.filter(e=>e.jobId!==id); state.tasks=state.tasks.filter(t=>t.jobId!==id); state.expenses=state.expenses.filter(x=>x.jobId!==id); state.punches=state.punches.filter(p=>p.jobId!==id); save();}
+function renderJobs(){const list=$('jobList'); list.innerHTML=state.jobs.map(j=>`<div class="jobRow"><div class="rowTop"><strong><span class="colorDot" style="background:${j.color}"></span> ${j.name}</strong><span>${j.address||''}</span></div><p>${j.notes||''}</p><button onclick="editJob('${j.id}')">Modifier</button> <button class="danger" onclick="deleteJob('${j.id}')">Supprimer chantier complet</button></div>`).join('')||'<div class="card">Aucun chantier.</div>';}
+
+$('prevMonth').onclick=()=>{currentMonth.setMonth(currentMonth.getMonth()-1);renderCalendar()}; $('nextMonth').onclick=()=>{currentMonth.setMonth(currentMonth.getMonth()+1);renderCalendar()};
+$('addMulti').onclick=()=>{
+  const jobId=$('multiJob').value,start=$('multiStart').value,end=$('multiEnd').value,time=$('multiTime').value||'07:00';
+  const includeWeekends=$('includeWeekends') && $('includeWeekends').checked;
+  if(!jobId||!start||!end)return alert('Choisis chantier, date début et date fin');
+  let d=new Date(start+'T12:00'), last=new Date(end+'T12:00');
+  if(d>last)return alert('Date de fin avant date de début');
+  const series=uid();
+  const j=jobById(jobId);
+  let added=0, skipped=0;
+  while(d<=last){
+    const day=d.getDay(); // 0 dimanche, 6 samedi
+    const isWeekend=day===0||day===6;
+    if(includeWeekends || !isWeekend){
+      const date=d.toISOString().slice(0,10);
+      state.events.push({id:uid(),seriesId:series,jobId,date,time,title:j.name,color:j.color});
+      added++;
+    } else { skipped++; }
+    d.setDate(d.getDate()+1);
+  }
+  save();
+  alert(`${added} journée(s) ajoutée(s). ${skipped} samedi/dimanche ignoré(s).`);
+};
+function renderCalendar(){renderSelects(); $('monthLabel').textContent=currentMonth.toLocaleDateString('fr-CA',{month:'long',year:'numeric'}); const grid=$('calendarGrid'); const y=currentMonth.getFullYear(),m=currentMonth.getMonth(); const first=new Date(y,m,1); const start=new Date(first); start.setDate(first.getDate()-((first.getDay()+6)%7)); const names=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']; grid.innerHTML=names.map(n=>`<div class="dayName">${n}</div>`).join(''); for(let i=0;i<42;i++){let d=new Date(start); d.setDate(start.getDate()+i); const iso=d.toISOString().slice(0,10); const evs=state.events.filter(e=>e.date===iso); const loose=state.tasks.filter(t=>t.date===iso && !t.eventId); grid.innerHTML+=`<div class="day ${d.getMonth()!==m?'out':''}" onclick="openDay('${iso}')"><div class="dateNum">${d.getDate()}</div>${evs.slice(0,3).map(e=>`<div class="eventPill" style="background:${e.color||'#333'}">${e.title}</div>`).join('')}${loose.length?`<div class="eventPill taskPill">${loose.length} tâche(s)</div>`:''}</div>`;} }
+function openDay(iso){
+  selectedDate=iso;
+  const evs=state.events.filter(e=>e.date===iso);
+  const looseTasks=state.tasks.filter(t=>t.date===iso && !t.eventId);
+  const panel=$('dayPanel');
+  panel.classList.remove('hidden');
+  panel.innerHTML=`<h3>${iso}</h3>
+    <div class="adminOnly quickTaskBox">
+      <h4>Ajouter une tâche / journée simple</h4>
+      <label>Chantier</label>
+      <select id="taskJob"><option value="">Aucun chantier / tâche générale</option>${state.jobs.map(j=>`<option value="${j.id}">${j.name}</option>`).join('')}</select>
+      <input id="taskTitle" placeholder="Ex: commander matériaux, appeler client, finition PVC">
+      <input id="taskTime" type="time" value="07:00">
+      <button type="button" id="addDayTaskBtn">Ajouter tâche</button>
+    </div>
+    ${evs.map(e=>eventHtml(e)).join('')||'<p>Rien cette date.</p>'}
+    ${looseTasks.length?`<div class="jobRow"><strong>Tâches générales</strong>${looseTasks.map(t=>taskHtml(t)).join('')}</div>`:''}`;
+  applyRole();
+  const btn=$('addDayTaskBtn');
+  if(btn) btn.onclick=addTaskToDay;
+}
+function taskHtml(t){return `<div class="taskRow ${t.done?'done':''}" onclick="toggleTask('${t.id}')">${t.done?'☑':'☐'} ${t.title}</div>`}
+function eventHtml(e){
+  const j=jobById(e.jobId)||{};
+  const tasks=state.tasks.filter(t=>t.eventId===e.id);
+  return `<div class="jobRow"><strong style="color:${e.color||'#333'}">${e.title}</strong><p>${j.address||''} ${e.time||''}</p>${tasks.map(t=>taskHtml(t)).join('')}<button onclick="deleteEvent('${e.id}')">Supprimer cette journée</button> <button class="danger" onclick="deleteSeries('${e.seriesId||e.id}')">Supprimer toute la série</button></div>`
+}
+function addTaskToDay(){
+  const jobId=$('taskJob') ? $('taskJob').value : '';
+  const title=$('taskTitle') ? $('taskTitle').value.trim() : '';
+  const time=$('taskTime') ? $('taskTime').value : '07:00';
+  if(!title)return alert('Écris la tâche à ajouter');
+  let eventId=null;
+  if(jobId){
+    const j=jobById(jobId);
+    let ev=state.events.find(e=>e.date===selectedDate && e.jobId===jobId && !e.seriesId);
+    if(!ev){
+      ev={id:uid(),seriesId:null,jobId,date:selectedDate,time,title:j.name,color:j.color};
+      state.events.push(ev);
+    }
+    eventId=ev.id;
+  }
+  state.tasks.push({id:uid(),eventId,jobId,date:selectedDate,title,done:false});
+  save();
+  openDay(selectedDate);
+}
+function toggleTask(id){const t=state.tasks.find(x=>x.id===id); if(!t)return; t.done=!t.done; save(); openDay(selectedDate);}
+function deleteEvent(id){state.events=state.events.filter(e=>e.id!==id); state.tasks=state.tasks.filter(t=>t.eventId!==id); save(); openDay(selectedDate);}
+function deleteSeries(seriesId){if(!confirm('Supprimer toutes les dates de cette série?'))return; const ids=state.events.filter(e=>(e.seriesId||e.id)===seriesId).map(e=>e.id); state.events=state.events.filter(e=>(e.seriesId||e.id)!==seriesId); state.tasks=state.tasks.filter(t=>!ids.includes(t.eventId)); save(); openDay(selectedDate);}
+
+$('punchIn').onclick=()=>{const employee=$('punchEmployee').value,jobId=$('punchJob').value;if(!jobId)return alert('Choisis un chantier'); if(state.activePunch)return alert('Punch déjà actif'); state.activePunch={employee,jobId,start:new Date().toISOString()}; save();};
+$('punchOut').onclick=()=>{if(!state.activePunch)return alert('Aucun punch actif'); const p={id:uid(),...state.activePunch,end:new Date().toISOString()}; state.punches.push(p); state.activePunch=null; save();};
+function renderPunch(){renderSelects(); if(timerInt)clearInterval(timerInt); const t=$('timer'); if(state.activePunch){const upd=()=>{const j=jobById(state.activePunch.jobId)||{}; const m=minutesBetween(state.activePunch.start,new Date().toISOString()); t.textContent=`${state.activePunch.employee} — ${j.name} — ${h(m)}`}; upd(); timerInt=setInterval(upd,1000);}else t.textContent='Aucun punch actif'; $('punchHistory').innerHTML=state.punches.slice().reverse().map(p=>{const j=jobById(p.jobId)||{};return `<div class="punchRow"><strong>${p.employee}</strong> — ${j.name||''}<br>${fmtDT(p.start)} à ${fmtDT(p.end)}<br>Payé: ${h(paidMinutes(p.start,p.end))} (dîner -30 min si 5h+)</div>`}).join('');}
+
+$('saveExpense').onclick=()=>{const jobId=$('expenseJob').value,supplier=$('expenseSupplier').value.trim(),amount=parseFloat($('expenseAmount').value||0),desc=$('expenseDesc').value.trim(); if(!jobId||!supplier||!amount)return alert('Chantier, fournisseur et montant obligatoires'); const file=$('expensePhoto').files[0]; const done=photo=>{state.expenses.push({id:uid(),date:todayISO(),jobId,supplier,amount,desc,photo}); ['expenseSupplier','expenseAmount','expenseDesc'].forEach(id=>$(id).value='');$('expensePhoto').value=''; save();}; if(file){const r=new FileReader(); r.onload=()=>done(r.result); r.readAsDataURL(file);}else done(null);};
+function renderExpenses(){renderSelects(); $('expenseList').innerHTML=state.expenses.slice().reverse().map(e=>{const j=jobById(e.jobId)||{}; return `<div class="expenseRow"><strong>${e.supplier}</strong> — ${j.name||''}<br>${e.amount.toFixed(2)} $ — ${e.desc||''}<br>${e.photo?`<img src="${e.photo}" class="photoThumb">`:''}</div>`}).join('')||'<div class="card">Aucune dépense.</div>';}
+function renderPayroll(){const by={}; state.punches.forEach(p=>{by[p.employee]=(by[p.employee]||0)+paidMinutes(p.start,p.end)}); $('payrollList').innerHTML=Object.entries(by).map(([emp,min])=>`<div class="card"><strong>${emp}</strong><br>Total payé: ${h(min)}</div>`).join('')||'<div class="card">Aucune heure.</div>';}
+$('exportPayroll').onclick=()=>{let csv='Employe,Chantier,Debut,Fin,Minutes payees\n'+state.punches.map(p=>`${p.employee},${(jobById(p.jobId)||{}).name||''},${p.start},${p.end},${paidMinutes(p.start,p.end)}`).join('\n'); download('paye.csv',csv,'text/csv')}
+$('exportData').onclick=()=>download('saran-backup.json',JSON.stringify(state,null,2),'application/json'); $('importData').onchange=e=>{const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=()=>{state=JSON.parse(r.result); save();}; r.readAsText(f);}; function download(name,txt,type){const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type})); a.download=name; a.click();}
+function renderToday(){const iso=todayISO(); const evs=state.events.filter(e=>e.date===iso); $('todayList').innerHTML=evs.map(e=>eventHtml(e)).join('')||'<div class="card">Rien au calendrier aujourd’hui.</div>';}
+function renderAll(){applyRole(); renderSelects(); renderJobs(); renderCalendar(); renderPunch(); renderExpenses(); renderPayroll(); renderToday();}
+renderAll();
