@@ -2,78 +2,105 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Saran Construction App</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="app">
-    <header>
-      <img src="logo.png" class="logo" alt="Saran Construction" />
-      <div class="tagline">AGENDA • CHANTIERS • PUNCH • DÉPENSES</div>
+  <main class="app">
+    <header class="brand">
+      <img src="logo.png" alt="Saran Construction" />
+      <p>AGENDA • CHANTIERS • PUNCH • DÉPENSES</p>
     </header>
 
-    <nav class="tabs">
-      <button data-tab="today" class="active">🏠 Aujourd'hui</button>
-      <button data-tab="calendar">📅 Calendrier</button>
-      <button data-tab="jobs">🛠 Chantiers</button>
-      <button data-tab="punch">⏱ Punch</button>
-      <button data-tab="expenses">💵 Dépenses</button>
-    </nav>
+    <section id="today" class="screen active">
+      <div class="hero">
+        <small>AUJOURD'HUI</small>
+        <h1>TABLEAU DE BORD</h1>
+      </div>
+      <div id="todayList" class="card-list"></div>
+    </section>
 
-    <main>
-      <section id="today" class="page active">
-        <div class="card hero"><div><small>AUJOURD'HUI</small><h1>Tableau de bord</h1></div><button onclick="openQuickTask()">+ TÂCHE</button></div>
-        <div id="todayList" class="list"></div>
-      </section>
+    <section id="calendar" class="screen">
+      <div class="section-head">
+        <h1>CALENDRIER</h1>
+        <button id="newEventBtn">+ Événement</button>
+      </div>
+      <div class="cal-controls">
+        <button id="prevMonth">‹</button>
+        <h2 id="calTitle"></h2>
+        <button id="nextMonth">›</button>
+      </div>
+      <div class="view-switch">
+        <button data-view="month" class="viewBtn active">Mois</button>
+        <button data-view="week" class="viewBtn">Semaine</button>
+        <button data-view="day" class="viewBtn">Jour</button>
+      </div>
+      <div id="calendarGrid" class="calendar-grid"></div>
+      <div id="agendaList" class="card-list"></div>
+    </section>
 
-      <section id="calendar" class="page">
-        <div class="card"><h2>Ajouter au calendrier</h2>
-          <input id="taskTitle" placeholder="Tâche / job" />
-          <input id="taskDate" type="date" />
-          <select id="taskJob"></select>
-          <input id="taskEmployee" placeholder="Assigné à (Jesse, Karl...)" />
-          <textarea id="taskNote" placeholder="Notes"></textarea>
-          <button onclick="addTask()">Ajouter</button>
-        </div>
-        <div id="calendarList" class="list"></div>
-      </section>
+    <section id="jobs" class="screen">
+      <div class="panel">
+        <h1>NOUVEAU CHANTIER</h1>
+        <input id="jobName" placeholder="Client / chantier" />
+        <input id="jobAddress" placeholder="Adresse" />
+        <input id="jobPhone" placeholder="Téléphone" />
+        <textarea id="jobNotes" placeholder="Notes du chantier"></textarea>
+        <button id="createJobBtn">CRÉER CHANTIER</button>
+      </div>
+      <div id="jobsList" class="card-list"></div>
+    </section>
 
-      <section id="jobs" class="page">
-        <div class="card"><h2>Nouveau chantier</h2>
-          <input id="jobName" placeholder="Client / chantier" />
-          <input id="jobAddress" placeholder="Adresse" />
-          <input id="jobPhone" placeholder="Téléphone" />
-          <textarea id="jobNote" placeholder="Notes du chantier"></textarea>
-          <button onclick="addJob()">Créer chantier</button>
-        </div>
-        <div id="jobsList" class="list"></div>
-      </section>
+    <section id="punch" class="screen">
+      <div class="panel">
+        <h1>PUNCH</h1>
+        <select id="punchJob"></select>
+        <button id="punchInBtn">PUNCH IN</button>
+        <button id="punchOutBtn" class="darkBtn">PUNCH OUT</button>
+      </div>
+      <div id="punchList" class="card-list"></div>
+    </section>
 
-      <section id="punch" class="page">
-        <div class="card"><h2>Punch</h2>
-          <select id="punchJob"></select>
-          <input id="punchEmployee" placeholder="Employé" value="Jesse" />
-          <div class="row"><button onclick="punchIn()">Punch IN</button><button onclick="punchOut()">Punch OUT</button></div>
-        </div>
-        <div id="punchList" class="list"></div>
-      </section>
+    <section id="expenses" class="screen">
+      <div class="panel">
+        <h1>DÉPENSE / FACTURE</h1>
+        <select id="expenseJob"></select>
+        <input id="expenseSupplier" placeholder="Fournisseur" />
+        <input id="expenseAmount" type="number" step="0.01" placeholder="Montant" />
+        <select id="expenseCategory">
+          <option>Matériaux</option><option>Essence</option><option>Location</option><option>Sous-traitant</option><option>Autre</option>
+        </select>
+        <input id="expensePhoto" type="file" accept="image/*" capture="environment" />
+        <button id="addExpenseBtn">AJOUTER FACTURE</button>
+      </div>
+      <div id="expensesList" class="card-list"></div>
+    </section>
+  </main>
 
-      <section id="expenses" class="page">
-        <div class="card"><h2>Dépense / facture</h2>
-          <select id="expenseJob"></select>
-          <input id="expenseSupplier" placeholder="Fournisseur (SJC, Canac...)" />
-          <input id="expenseAmount" type="number" step="0.01" placeholder="Montant" />
-          <select id="expenseCategory"><option>Matériaux</option><option>Essence</option><option>Location</option><option>Sous-traitant</option><option>Autre</option></select>
-          <input id="expensePhoto" type="file" accept="image/*" capture="environment" />
-          <textarea id="expenseNote" placeholder="Note"></textarea>
-          <button onclick="addExpense()">Sauvegarder facture</button>
-        </div>
-        <div id="expenseList" class="list"></div>
-      </section>
-    </main>
-  </div>
+  <dialog id="eventDialog">
+    <form method="dialog" class="panel dialog-panel">
+      <h1>ÉVÉNEMENT</h1>
+      <input id="eventTitle" placeholder="Titre" />
+      <input id="eventDate" type="date" />
+      <input id="eventTime" type="time" />
+      <select id="eventType"><option>Chantier</option><option>Appel</option><option>Commande</option><option>Livraison</option><option>Rappel</option></select>
+      <select id="eventJob"></select>
+      <textarea id="eventNotes" placeholder="Notes"></textarea>
+      <button id="saveEventBtn">SAUVEGARDER</button>
+      <button id="deleteEventBtn" class="danger" type="button">SUPPRIMER</button>
+      <button type="button" id="closeEventBtn" class="darkBtn">FERMER</button>
+    </form>
+  </dialog>
+
+  <nav class="bottom-nav">
+    <button data-screen="today" class="active">🏠<span>Aujourd'hui</span></button>
+    <button data-screen="calendar">📅<span>Calendrier</span></button>
+    <button data-screen="jobs">🛠️<span>Chantiers</span></button>
+    <button data-screen="punch">⏱️<span>Punch</span></button>
+    <button data-screen="expenses">💵<span>Dépenses</span></button>
+  </nav>
   <script src="script.js"></script>
 </body>
 </html>
