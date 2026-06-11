@@ -119,3 +119,93 @@ textarea{min-height:90px;resize:vertical}.two{display:grid;grid-template-columns
 .rowTop{display:flex;justify-content:space-between;gap:10px;align-items:center}.colorDot{width:18px;height:18px;border-radius:50%;display:inline-block;border:2px solid rgba(255,255,255,.65);box-shadow:0 0 0 3px rgba(0,0,0,.2)}.danger{background:linear-gradient(180deg,#b12121,#6c0909);border-color:#de6666}.timer{font-size:24px;font-weight:900;margin-top:12px;padding:14px;background:#0f0f0f;border:1px solid rgba(255,255,255,.16);border-radius:14px}.taskRow.done{text-decoration:line-through;opacity:.55}.photoThumb{max-width:130px;border:1px solid rgba(255,255,255,.2);border-radius:12px;margin-top:8px}.hint{color:var(--muted);font-size:14px;margin:6px 0 10px}.checkLine{display:flex;align-items:center;gap:10px;margin:10px 0;font-weight:800}.checkLine input{width:auto;margin:0}.day:nth-child(7n),.day:nth-child(7n+1){background:rgba(255,255,255,.035)}.dayName:nth-child(6),.dayName:nth-child(7){color:#777}.quickTaskBox{border-style:dashed}.taskPill{background:#777!important}.taskRow{padding:10px;margin:7px 0}.tab>h2:first-child{border-bottom:1px solid rgba(255,255,255,.12);padding-bottom:10px}
 @media(max-width:720px){
   .topbar{padding:16px 12px 10px}.logo{width:64px;height:64px}h1{font-size:18px}main{padding:10px 10px 86px}.loginCard{grid-template-columns:1fr}.tabs{position:fixed;left:8px;right:8px;bottom:8px;top:auto;margin:0;justify-content:space-between}.tabs button{font-size:11px;padding:10px 9px;min-width:72px}.calendarGrid{gap:4px}.day{min-height:78px;padding:5px;border-radius:10px}.eventPill{font-size:9px;padding:4px 5px}.two{grid-template-columns:1fr}h2{font-size:23px}.card{padding:13px}}
+
+/* V5.5 Dashboard Mobile - retour style gros boutons */
+body{
+  background:
+    radial-gradient(circle at 50% -10%,rgba(245,158,11,.16),transparent 34%),
+    radial-gradient(circle at 0% 10%,rgba(255,255,255,.07),transparent 28%),
+    linear-gradient(180deg,#080808 0%,#161616 50%,#050505 100%);
+}
+.dashboardTop{
+  flex-direction:column;
+  justify-content:center;
+  text-align:center;
+  gap:10px;
+  padding-top:24px;
+  border-bottom:0;
+}
+.dashboardTop .logo{
+  width:118px;
+  height:118px;
+  border-radius:28px;
+  background:#f7f4ec;
+}
+.dashboardTop h1{
+  font-size:30px;
+  line-height:1.05;
+}
+.loginCard{
+  max-width:520px;
+  margin:12px auto 16px;
+  background:rgba(255,255,255,.06);
+}
+.tabs{
+  max-width:980px;
+  margin:12px auto 20px;
+  justify-content:center;
+}
+.tabs button{
+  min-width:115px;
+}
+.homeHero{
+  text-align:center;
+  max-width:760px;
+  margin:10px auto 16px;
+  border:1px solid rgba(245,158,11,.25);
+  background:linear-gradient(180deg,rgba(245,158,11,.13),rgba(255,255,255,.045));
+}
+.homeHero h2{margin-bottom:4px}
+.homeHero p{color:var(--muted);font-weight:700}
+.homeGrid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px;
+  max-width:760px;
+  margin:0 auto 22px;
+}
+.homeBtn{
+  min-height:138px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  border-radius:24px;
+  background:linear-gradient(180deg,#2b2b2b,#121212);
+  border:1px solid rgba(255,255,255,.18);
+  box-shadow:0 18px 36px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.08);
+  text-transform:none;
+}
+.homeBtn span{font-size:38px;line-height:1}
+.homeBtn strong{font-size:18px;text-transform:uppercase;letter-spacing:.04em}
+.homeBtn small{font-size:12px;color:var(--muted);font-weight:800;letter-spacing:0;text-transform:none}
+.homeBtn:nth-child(1),.homeBtn:nth-child(3){border-color:rgba(245,158,11,.38)}
+.todayTitle{max-width:760px;margin:24px auto 12px}
+#todayList{max-width:760px;margin:0 auto}
+.card,.jobRow,.expenseRow,.punchRow,.taskRow{border-radius:20px}
+.calendarGrid{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);padding:8px;border-radius:22px}
+.day{background:rgba(255,255,255,.075)}
+.day:hover{transform:translateY(-1px)}
+button.danger{background:linear-gradient(180deg,#bd2d2d,#690b0b)}
+@media(max-width:720px){
+  .dashboardTop .logo{width:104px;height:104px}
+  .dashboardTop h1{font-size:24px}
+  .tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;position:static;margin-bottom:14px}
+  .tabs button{min-width:0;font-size:10px;padding:10px 6px}
+  .tabs button[data-tab="backup"]{display:none!important}
+  .homeGrid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .homeBtn{min-height:116px;border-radius:20px;padding:10px}
+  .homeBtn span{font-size:32px}.homeBtn strong{font-size:14px}.homeBtn small{font-size:10px}
+  main{padding-bottom:28px}
+}

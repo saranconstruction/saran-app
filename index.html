@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Saran Construction App V5.4 Design</title>
+  <title>Saran Construction App V5.5 Dashboard</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header class="topbar">
+  <header class="topbar dashboardTop">
     <img src="logo.png" alt="Saran Construction" class="logo" />
     <div>
-      <h1>Saran App V5.4</h1>
+      <h1>Saran Construction</h1>
       <p id="roleLabel">Mode Admin</p>
     </div>
   </header>
@@ -35,8 +35,22 @@
       <button data-tab="backup" class="adminOnly">Backup</button>
     </nav>
 
-    <section id="today" class="tab active">
-      <h2>Aujourd'hui</h2>
+    <section id="today" class="tab active dashboardHome">
+      <div class="homeHero card">
+        <h2>Tableau de bord</h2>
+        <p>Gestion Saran Construction : calendrier, chantiers, punch, dépenses et paie.</p>
+      </div>
+
+      <div class="homeGrid">
+        <button class="homeBtn" onclick="document.querySelector('[data-tab=calendar]').click()"><span>📅</span><strong>Calendrier</strong><small>Voir les jobs à venir</small></button>
+        <button class="homeBtn" onclick="document.querySelector('[data-tab=jobs]').click()"><span>🛠️</span><strong>Chantiers</strong><small>Clients, adresses, notes</small></button>
+        <button class="homeBtn" onclick="document.querySelector('[data-tab=punch]').click()"><span>👊</span><strong>Punch</strong><small>Début / fin journée</small></button>
+        <button class="homeBtn" onclick="document.querySelector('[data-tab=expenses]').click()"><span>💵</span><strong>Dépenses</strong><small>Factures et reçus</small></button>
+        <button class="homeBtn adminOnly" onclick="document.querySelector('[data-tab=payroll]').click()"><span>👷</span><strong>Employés</strong><small>Heures et paie</small></button>
+        <button class="homeBtn adminOnly" onclick="document.querySelector('[data-tab=backup]').click()"><span>📊</span><strong>Backup</strong><small>Exporter / importer</small></button>
+      </div>
+
+      <h2 class="todayTitle">Aujourd'hui</h2>
       <div id="todayList"></div>
     </section>
 
