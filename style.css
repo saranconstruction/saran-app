@@ -348,3 +348,17 @@ display:none;
 .loginError{margin-top:12px;color:#ffb4b4;font-weight:700;}
 .connectedUser{font-size:18px;font-weight:900;}
 .logoutBtn{margin-top:10px;}
+
+
+.linkBtn{
+  margin-top:10px;
+  background:transparent!important;
+  border:none!important;
+  box-shadow:none!important;
+  text-decoration:underline;
+  color:var(--muted)!important;
+}
+#passwordScreen .authCard{
+  max-width:520px;
+  margin:0 auto;
+}

@@ -49,7 +49,60 @@ function showLogin(message = '') {
 
 function showApp() {
   $('loginScreen').classList.add('hidden');
+  if ($('passwordScreen')) $('passwordScreen').classList.add('hidden');
   $('appMain').classList.remove('hidden');
+}
+
+function showPasswordScreen(message = '') {
+  $('loginScreen').classList.add('hidden');
+  $('appMain').classList.add('hidden');
+  if ($('passwordScreen')) $('passwordScreen').classList.remove('hidden');
+  if ($('passwordError')) $('passwordError').textContent = message;
+}
+
+function recoveryModeRequested() {
+  const hash = window.location.hash || '';
+  const search = window.location.search || '';
+  return hash.includes('type=recovery') || search.includes('type=recovery') || hash.includes('access_token=');
+}
+
+async function forgotPassword() {
+  const email = $('loginEmail').value.trim();
+  $('loginError').textContent = '';
+  if (!email) {
+    $('loginError').textContent = 'Entre ton courriel avant de cliquer mot de passe oublié.';
+    return;
+  }
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin
+  });
+  if (error) {
+    $('loginError').textContent = error.message;
+    return;
+  }
+  $('loginError').textContent = 'Courriel envoyé. Ouvre le lien reçu pour changer ton mot de passe.';
+}
+
+async function updatePassword() {
+  const p1 = $('newPassword').value;
+  const p2 = $('newPassword2').value;
+  $('passwordError').textContent = '';
+  if (!p1 || p1.length < 6) {
+    $('passwordError').textContent = 'Mot de passe trop court. Minimum 6 caractères.';
+    return;
+  }
+  if (p1 !== p2) {
+    $('passwordError').textContent = 'Les deux mots de passe ne sont pas identiques.';
+    return;
+  }
+  const { error } = await supabaseClient.auth.updateUser({ password: p1 });
+  if (error) {
+    $('passwordError').textContent = error.message;
+    return;
+  }
+  history.replaceState(null, '', window.location.origin);
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  await openSession(session);
 }
 
 async function signIn() {
@@ -85,24 +138,42 @@ async function openSession(session) {
     return;
   }
   currentUser = session.user;
-  const { data: profile, error } = await supabaseClient
+
+  let profile = null;
+  let byId = await supabaseClient
     .from('profiles')
     .select('*')
     .eq('id', currentUser.id)
-    .single();
+    .maybeSingle();
 
-  if (error || !profile) {
-    currentProfile = {
+  if (byId.data) {
+    profile = byId.data;
+  } else {
+    let byEmail = await supabaseClient
+      .from('profiles')
+      .select('*')
+      .eq('email', currentUser.email)
+      .maybeSingle();
+
+    if (byEmail.data) profile = byEmail.data;
+  }
+
+  if (!profile) {
+    profile = {
       id: currentUser.id,
       email: currentUser.email,
       full_name: currentUser.email,
       role: 'employee'
     };
-  } else {
-    currentProfile = profile;
   }
+
+  currentProfile = profile;
   state.user = currentProfile.role === 'admin' ? 'jesse' : 'karl';
-  if ($('connectedUser')) $('connectedUser').textContent = `${currentProfile.full_name || currentUser.email} — ${currentProfile.role}`;
+
+  if ($('connectedUser')) {
+    $('connectedUser').textContent = `${currentProfile.full_name || currentUser.email} — ${currentProfile.role}`;
+  }
+
   showApp();
   await loadAllFromSupabase();
 }
@@ -544,6 +615,8 @@ function setupHandlers() {
     renderAll();
   });
   $('loginBtn').onclick = signIn;
+  if ($('forgotPasswordBtn')) $('forgotPasswordBtn').onclick = forgotPassword;
+  if ($('updatePasswordBtn')) $('updatePasswordBtn').onclick = updatePassword;
   if ($('logoutBtn')) $('logoutBtn').onclick = logout;
   $('saveJob').onclick = saveJob;
   $('clearJobForm').onclick = clearJob;
@@ -562,8 +635,12 @@ async function startApp() {
   setupHandlers();
   try {
     await initSupabase();
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') showPasswordScreen();
+    });
     const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session) await openSession(session);
+    if (session && recoveryModeRequested()) showPasswordScreen();
+    else if (session) await openSession(session);
     else showLogin();
   } catch (e) {
     console.error(e);
