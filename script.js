@@ -1,78 +1,41 @@
--- Saran Construction App V5 - Supabase setup
--- Run this in Supabase: SQL Editor -> New query -> paste -> Run
-
-create extension if not exists "pgcrypto";
-
-create table if not exists profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
-  email text unique,
-  full_name text,
-  role text default 'employee' check (role in ('admin','employee')),
-  created_at timestamptz default now()
-);
-
-create table if not exists jobs (
-  id uuid primary key default gen_random_uuid(),
-  name text not null,
-  address text,
-  phone text,
-  notes text,
-  color text default '#9ca3af',
-  status text default 'active',
-  created_by uuid references auth.users(id),
-  created_at timestamptz default now()
-);
-
-create table if not exists events (
-  id uuid primary key default gen_random_uuid(),
-  job_id uuid references jobs(id) on delete set null,
-  title text not null,
-  event_date date not null,
-  start_time text default '07:00',
-  end_time text,
-  type text default 'chantier',
-  notes text,
-  color text default '#9ca3af',
-  series_id text,
-  created_by uuid references auth.users(id),
-  created_at timestamptz default now()
-);
-
-create table if not exists tasks (
-  id uuid primary key default gen_random_uuid(),
-  event_id uuid references events(id) on delete cascade,
-  job_id uuid references jobs(id) on delete set null,
-  task_date date,
-  title text not null,
-  done boolean default false,
-  created_by uuid references auth.users(id),
-  created_at timestamptz default now()
-);
-
-create table if not exists time_entries (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references auth.users(id) on delete cascade,
-  job_id uuid references jobs(id) on delete set null,
-  punch_in timestamptz not null,
-  punch_out timestamptz,
-  lunch_minutes integer default 30,
-  paid_minutes integer,
-  note text,
-  created_at timestamptz default now()
-);
-
-create table if not exists expenses (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references auth.users(id) on delete set null,
-  job_id uuid references jobs(id) on delete set null,
-  supplier text,
-  amount numeric(10,2) default 0,
-  description text,
-  category text default 'matériaux',
-  receipt_data text,
-  expense_date date default current_date,
-  created_at timestamptz default now()
-);
-
--- For now, RLS is intentionally disabled so your simple Vercel static app can work quickly.
--- Later, when the app is stable, enable RLS and add policies for Jesse/Admin and Karl/Employee.
+let supabaseClient=null;let currentUser=null;let profile=null;let state={jobs:[],events:[],tasks:[],time_entries:[],expenses:[]};let selectedDate=todayISO();let currentMonth=new Date();let editingJob=null,editingEvent=null;let activePunch=null;let timerInt=null;
+const $=id=>document.getElementById(id);const qsa=s=>document.querySelectorAll(s);
+function todayISO(){return new Date().toISOString().slice(0,10)}function uuid(){return crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random())}function fmtMoney(n){return Number(n||0).toFixed(2).replace('.',',')+' $'}function escapeHtml(s=''){return String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
+async function init(){try{let cfg=await fetch('/api/config').then(r=>r.json());if(!cfg.supabaseUrl||!cfg.supabaseKey)throw new Error('Config Supabase manquante');supabaseClient=supabase.createClient(cfg.supabaseUrl,cfg.supabaseKey);const {data:{session}}=await supabaseClient.auth.getSession();if(session){currentUser=session.user;await afterLogin()}else showAuth()}catch(e){$('authMsg').textContent='Erreur config Supabase: '+e.message;showAuth()}bind()}
+function bind(){qsa('[data-go]').forEach(b=>b.onclick=()=>showView(b.dataset.go));$('loginBtn').onclick=login;$('signupBtn').onclick=signup;$('logoutBtn').onclick=logout;$('prevMonth').onclick=()=>{currentMonth.setMonth(currentMonth.getMonth()-1);renderCalendar()};$('nextMonth').onclick=()=>{currentMonth.setMonth(currentMonth.getMonth()+1);renderCalendar()};$('openJobBtn').onclick=()=>openJob();$('saveJobBtn').onclick=saveJob;$('deleteJobBtn').onclick=deleteJob;$('openEventBtn').onclick=()=>openEvent(selectedDate);$('saveEventBtn').onclick=saveEvent;$('deleteEventBtn').onclick=deleteEvent;$('openMultiBtn').onclick=openMulti;$('saveMultiBtn').onclick=saveMulti;$('openTaskBtn').onclick=()=>openTask(selectedDate);$('saveTaskBtn').onclick=saveTask;$('openExpenseBtn').onclick=openExpense;$('saveExpenseBtn').onclick=saveExpense;$('punchInBtn').onclick=punchIn;$('punchOutBtn').onclick=punchOut}
+function showAuth(){$('authView').classList.remove('hidden');$('mainView').classList.add('hidden');$('bottomNav').classList.add('hidden')}
+async function login(){const email=$('email').value.trim(),password=$('password').value;const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});if(error){$('authMsg').textContent=error.message;return}currentUser=data.user;await afterLogin()}
+async function signup(){const email=$('email').value.trim(),password=$('password').value;const {data,error}=await supabaseClient.auth.signUp({email,password});if(error){$('authMsg').textContent=error.message;return}currentUser=data.user;await ensureProfile(email);$('authMsg').textContent='Compte créé. Si Supabase demande une confirmation email, confirme le courriel puis reconnecte-toi.';await afterLogin()}
+async function logout(){await supabaseClient.auth.signOut();currentUser=null;profile=null;showAuth()}
+async function ensureProfile(email){let role=email&&email.toLowerCase().includes('jesse')?'admin':'employee';await supabaseClient.from('profiles').upsert({id:currentUser.id,email,display_name:email.split('@')[0],role},{onConflict:'id'})}
+async function afterLogin(){await ensureProfile(currentUser.email);let {data}=await supabaseClient.from('profiles').select('*').eq('id',currentUser.id).single();profile=data;$('userBadge').textContent=`${profile.display_name||currentUser.email} • ${profile.role}`;$('userBadge').classList.remove('hidden');$('authView').classList.add('hidden');$('mainView').classList.remove('hidden');$('bottomNav').classList.remove('hidden');await loadAll();showView('today')}
+async function loadAll(){for(const table of ['jobs','events','tasks','time_entries','expenses']){let {data,error}=await supabaseClient.from(table).select('*').order('created_at',{ascending:true});state[table]=data||[]}renderAll()}
+function showView(id){qsa('.view').forEach(v=>v.classList.remove('active'));$(id).classList.add('active');renderAll()}
+function renderAll(){renderSelects();renderJobs();renderCalendar();renderDay();renderToday();renderTime();renderExpenses()}
+function renderSelects(){let opts='<option value="">Aucun chantier lié</option>'+state.jobs.map(j=>`<option value="${j.id}">${escapeHtml(j.name)}</option>`).join('');['eventJob','multiJob','taskJob','expenseJob','punchJob'].forEach(id=>{if($(id))$(id).innerHTML=opts})}
+function renderJobs(){let el=$('jobsList');el.innerHTML=state.jobs.map(j=>{let total=state.expenses.filter(e=>e.job_id===j.id).reduce((a,e)=>a+Number(e.amount||0),0);return `<div class="list-item" onclick="openJob('${j.id}')"><b style="color:${j.color||'#fff'}">●</b> <strong>${escapeHtml(j.name)}</strong><br><span class="muted">${escapeHtml(j.address||'Adresse à ajouter')}</span><p>${escapeHtml(j.notes||'')}</p><b>Dépenses: ${fmtMoney(total)}</b></div>`}).join('')||'<p class="muted">Aucun chantier.</p>'}
+function openJob(id=null){editingJob=id?state.jobs.find(j=>j.id===id):null;$('jobName').value=editingJob?.name||'';$('jobAddress').value=editingJob?.address||'';$('jobPhone').value=editingJob?.phone||'';$('jobNotes').value=editingJob?.notes||'';$('jobColor').value=editingJob?.color||'#8fbfff';$('deleteJobBtn').style.display=editingJob?'block':'none';$('jobDialog').showModal()}
+async function saveJob(){let row={name:$('jobName').value.trim(),address:$('jobAddress').value.trim(),phone:$('jobPhone').value.trim(),notes:$('jobNotes').value.trim(),color:$('jobColor').value,created_by:currentUser.id};if(!row.name)return alert('Nom requis');let res;if(editingJob){res=await supabaseClient.from('jobs').update(row).eq('id',editingJob.id)}else{row.id=uuid();res=await supabaseClient.from('jobs').insert(row)}if(res.error)return alert(res.error.message);$('jobDialog').close();await loadAll()}
+async function deleteJob(){if(!editingJob)return;if(!confirm('Supprimer ce chantier et tous ses événements/tâches/dépenses?'))return;await supabaseClient.from('events').delete().eq('job_id',editingJob.id);await supabaseClient.from('tasks').delete().eq('job_id',editingJob.id);await supabaseClient.from('expenses').delete().eq('job_id',editingJob.id);await supabaseClient.from('jobs').delete().eq('id',editingJob.id);$('jobDialog').close();await loadAll()}
+function monthStart(d){return new Date(d.getFullYear(),d.getMonth(),1)}function isoLocal(d){return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10)}
+function renderCalendar(){let grid=$('calendarGrid');let y=currentMonth.getFullYear(),m=currentMonth.getMonth();$('monthTitle').textContent=currentMonth.toLocaleDateString('fr-CA',{month:'long',year:'numeric'}).toUpperCase();let first=monthStart(currentMonth);let start=new Date(first);let day=(first.getDay()+6)%7;start.setDate(first.getDate()-day);let html='';for(let i=0;i<42;i++){let d=new Date(start);d.setDate(start.getDate()+i);let iso=isoLocal(d);let evs=state.events.filter(e=>e.event_date===iso);html+=`<div class="day ${d.getMonth()!==m?'dim':''} ${iso===todayISO()?'today':''}" onclick="selectDay('${iso}')"><div class="date-num">${d.getDate()}</div>${evs.slice(0,3).map(e=>{let j=state.jobs.find(x=>x.id===e.job_id);return `<div class="pill" style="background:${j?.color||'#ddd'}">${escapeHtml(e.title)}</div>`}).join('')}</div>`}grid.innerHTML=html}
+function selectDay(iso){selectedDate=iso;renderDay()}
+function renderDay(){let d=selectedDate;$('selectedDayTitle').textContent=new Date(d+'T12:00').toLocaleDateString('fr-CA',{weekday:'long',day:'numeric',month:'long'});let evs=state.events.filter(e=>e.event_date===d);$('dayEvents').innerHTML=evs.map(e=>{let j=state.jobs.find(x=>x.id===e.job_id);return `<div class="list-item" onclick="openEvent('${d}','${e.id}')"><b style="color:${j?.color||'#fff'}">●</b> ${escapeHtml(e.title)} <span class="muted">${e.event_time||''}</span></div>`}).join('')||'<p class="muted">Rien cette journée.</p>';let tasks=state.tasks.filter(t=>t.task_date===d);$('dayTasks').innerHTML=tasks.map(t=>`<label class="list-item check"><input type="checkbox" ${t.done?'checked':''} onchange="toggleTask('${t.id}',this.checked)">${escapeHtml(t.title)}</label>`).join('')}
+function renderToday(){let evs=state.events.filter(e=>e.event_date===todayISO());$('todayEvents').innerHTML=evs.map(e=>`<div class="list-item">${escapeHtml(e.title)} ${e.event_time||''}</div>`).join('')||'<p class="muted">Aucun job aujourd’hui.</p>';let tasks=state.tasks.filter(t=>t.task_date===todayISO());$('todayTasks').innerHTML=tasks.map(t=>`<label class="list-item check"><input type="checkbox" ${t.done?'checked':''} onchange="toggleTask('${t.id}',this.checked)">${escapeHtml(t.title)}</label>`).join('')||'<p class="muted">Aucune tâche.</p>'}
+function openEvent(date,id=null){editingEvent=id?state.events.find(e=>e.id===id):null;$('eventDate').value=date||todayISO();$('eventJob').value=editingEvent?.job_id||'';$('eventTitle').value=editingEvent?.title||'';$('eventTime').value=editingEvent?.event_time||'07:00';$('eventNotes').value=editingEvent?.notes||'';$('deleteEventBtn').style.display=editingEvent?'block':'none';$('eventDialog').showModal()}
+$('eventJob').addEventListener('change',()=>{let j=state.jobs.find(x=>x.id===$('eventJob').value);if(j&&!$('eventTitle').value)$('eventTitle').value=j.name+' — chantier'})
+async function saveEvent(){let row={job_id:$('eventJob').value||null,title:$('eventTitle').value.trim(),event_date:$('eventDate').value,event_time:$('eventTime').value,notes:$('eventNotes').value,created_by:currentUser.id};if(!row.title||!row.event_date)return alert('Titre et date requis');let res;if(editingEvent){res=await supabaseClient.from('events').update(row).eq('id',editingEvent.id)}else{row.id=uuid();res=await supabaseClient.from('events').insert(row)}if(res.error)return alert(res.error.message);$('eventDialog').close();await loadAll()}
+async function deleteEvent(){if(!editingEvent)return;if(!confirm('Supprimer cet événement?'))return;await supabaseClient.from('events').delete().eq('id',editingEvent.id);$('eventDialog').close();await loadAll()}
+function openMulti(){$('multiStart').value=selectedDate;$('multiEnd').value=selectedDate;$('multiDialog').showModal()}
+async function saveMulti(){let job=state.jobs.find(j=>j.id===$('multiJob').value);if(!job)return alert('Choisis un chantier');let start=new Date($('multiStart').value+'T12:00'),end=new Date($('multiEnd').value+'T12:00');let rows=[];for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){let wd=d.getDay();if(!$('multiWeekend').checked&&(wd===0||wd===6))continue;rows.push({id:uuid(),job_id:job.id,title:job.name+' — chantier',event_date:isoLocal(d),event_time:$('multiTime').value,notes:job.address||'',series_id:uuid(),created_by:currentUser.id})}if(!rows.length)return alert('Aucune date à ajouter');let {error}=await supabaseClient.from('events').insert(rows);if(error)return alert(error.message);$('multiDialog').close();await loadAll()}
+function openTask(date){$('taskDate').value=date;$('taskTitle').value='';$('taskDialog').showModal()}
+async function saveTask(){let row={id:uuid(),job_id:$('taskJob').value||null,title:$('taskTitle').value.trim(),task_date:$('taskDate').value,done:false,created_by:currentUser.id};if(!row.title)return alert('Tâche requise');let {error}=await supabaseClient.from('tasks').insert(row);if(error)return alert(error.message);$('taskDialog').close();await loadAll()}
+async function toggleTask(id,done){await supabaseClient.from('tasks').update({done}).eq('id',id);await loadAll()}
+function openExpense(){$('expenseSupplier').value='';$('expenseAmount').value='';$('expenseDescription').value='';$('expenseDialog').showModal()}
+async function saveExpense(){let row={id:uuid(),job_id:$('expenseJob').value||null,supplier:$('expenseSupplier').value.trim(),amount:Number($('expenseAmount').value||0),description:$('expenseDescription').value.trim(),expense_date:todayISO(),created_by:currentUser.id};if(!row.supplier||!row.amount)return alert('Fournisseur et montant requis');let {error}=await supabaseClient.from('expenses').insert(row);if(error)return alert(error.message);$('expenseDialog').close();await loadAll()}
+function renderExpenses(){$('expensesList').innerHTML=state.expenses.map(e=>{let j=state.jobs.find(x=>x.id===e.job_id);return `<div class="list-item"><strong>${escapeHtml(e.supplier)}</strong> — ${fmtMoney(e.amount)}<br><span class="muted">${escapeHtml(j?.name||'Aucun chantier')} • ${escapeHtml(e.description||'')}</span></div>`}).join('')||'<p class="muted">Aucune dépense.</p>'}
+async function punchIn(){let job=$('punchJob').value;if(!job)return alert('Choisis un chantier');activePunch={id:uuid(),employee:$('punchEmployee').value,job_id:job,start_time:new Date().toISOString(),created_by:currentUser.id};localStorage.setItem('activePunch',JSON.stringify(activePunch));startTimer()}
+async function punchOut(){let p=JSON.parse(localStorage.getItem('activePunch')||'null');if(!p)return alert('Aucun punch en cours');p.end_time=new Date().toISOString();let gross=(new Date(p.end_time)-new Date(p.start_time))/3600000;p.break_minutes=gross>=5?30:0;p.paid_hours=Math.max(0,gross-p.break_minutes/60);let {error}=await supabaseClient.from('time_entries').insert(p);if(error)return alert(error.message);localStorage.removeItem('activePunch');activePunch=null;clearInterval(timerInt);$('timer').textContent='00:00:00';await loadAll()}
+function startTimer(){clearInterval(timerInt);timerInt=setInterval(()=>{let p=JSON.parse(localStorage.getItem('activePunch')||'null');if(!p)return;let s=Math.floor((Date.now()-new Date(p.start_time))/1000);let h=String(Math.floor(s/3600)).padStart(2,'0'),m=String(Math.floor(s%3600/60)).padStart(2,'0'),sec=String(s%60).padStart(2,'0');$('timer').textContent=`${h}:${m}:${sec}`},1000)}
+function renderTime(){let total=0;$('timeList').innerHTML=state.time_entries.map(t=>{let j=state.jobs.find(x=>x.id===t.job_id);total+=Number(t.paid_hours||0);return `<div class="list-item"><strong>${escapeHtml(t.employee)}</strong> — ${escapeHtml(j?.name||'')}</br><span class="muted">${new Date(t.start_time).toLocaleString('fr-CA')} → ${t.end_time?new Date(t.end_time).toLocaleTimeString('fr-CA'):''}</span><br><b>${Number(t.paid_hours||0).toFixed(2)} h payées</b></div>`}).join('')+`<div class="list-item"><b>Total: ${total.toFixed(2)} h</b></div>`}
+window.openJob=openJob;window.openEvent=openEvent;window.toggleTask=toggleTask;init();
