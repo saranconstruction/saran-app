@@ -1,18 +1,40 @@
 const $ = (id)=>document.getElementById(id);
-const KEY='saranAppV34';
-const todayISO=()=>new Date().toISOString().slice(0,10);
-let state=JSON.parse(localStorage.getItem(KEY)||localStorage.getItem('saranAppV33')||localStorage.getItem('saranAppV32')||localStorage.getItem('saranAppV31')||'null')||{
- jobs:[
-  {id:crypto.randomUUID(),name:'Virginie',address:'Adresse à ajouter',phone:'',notes:'PVC SJC + pieux',color:'#111111'},
-  {id:crypto.randomUUID(),name:'Cécile Vette',address:'Adresse à ajouter',phone:'',notes:'Reposer le Vénus',color:'#555555'},
-  {id:crypto.randomUUID(),name:'Guy Bergeron',address:"248 d'Allier",phone:'',notes:'Pieux',color:'#888888'}
- ],events:[],expenses:[],punches:[],activePunch:null
-};
-if(!state.events.length){const y=new Date().getFullYear();state.events=[
- {id:crypto.randomUUID(),title:'Virginie — planter les pieux',date:`${y}-06-12`,time:'08:00',type:'Chantier',jobName:'Virginie',notes:'Horaire à confirmer'},
- {id:crypto.randomUUID(),title:'Cécile Vette — reposer le Vénus',date:`${y}-06-12`,time:'08:00',type:'Chantier',jobName:'Cécile Vette',notes:'Horaire à confirmer'},
- {id:crypto.randomUUID(),title:"Guy Bergeron — pieux au 248 d'Allier",date:`${y}-06-15`,time:'08:00',type:'Chantier',jobName:'Guy Bergeron',notes:'Horaire à confirmer'},
-];save()}
+const KEY='saranAppData';
+const OLD_KEYS=['saranAppV34','saranAppV33','saranAppV32','saranAppV31','saranAppV21','saranAppV2'];
+const DEFAULT_DATA={jobs:[
+ {id:'default-virginie',name:'Virginie',address:'Adresse à ajouter',phone:'',notes:'PVC SJC + pieux',color:'#111111'},
+ {id:'default-cecile',name:'Cécile Vette',address:'Adresse à ajouter',phone:'',notes:'Reposer le Vénus',color:'#555555'},
+ {id:'default-guy',name:'Guy Bergeron',address:"248 d'Allier",phone:'',notes:'Pieux',color:'#888888'}
+],events:[],expenses:[],punches:[],activePunch:null};
+function safeParse(txt){try{return JSON.parse(txt)}catch(e){return null}}
+function normalize(data){
+ data=data||{};
+ return {
+  jobs:Array.isArray(data.jobs)?data.jobs:[],
+  events:Array.isArray(data.events)?data.events:[],
+  expenses:Array.isArray(data.expenses)?data.expenses:[],
+  punches:Array.isArray(data.punches)?data.punches:[],
+  activePunch:data.activePunch||null
+ };
+}
+function loadState(){
+ let current=safeParse(localStorage.getItem(KEY));
+ if(current) return normalize(current);
+ for(const k of OLD_KEYS){
+  const old=safeParse(localStorage.getItem(k));
+  if(old && (old.jobs?.length || old.events?.length || old.expenses?.length || old.punches?.length)){
+   const migrated=normalize(old);
+   localStorage.setItem(KEY,JSON.stringify(migrated));
+   return migrated;
+  }
+ }
+ const fresh=JSON.parse(JSON.stringify(DEFAULT_DATA));
+ localStorage.setItem(KEY,JSON.stringify(fresh));
+ return fresh;
+}
+let state=loadState();
+// Important: à partir de V3.5, on garde toujours la même clé localStorage.
+// Les prochains updates ne devraient plus effacer les chantiers que tu crées.
 let calDate=new Date(); let view='month'; let editingEventId=null; let selectedDay=null; let editingJobId=null;
 function save(){localStorage.setItem(KEY,JSON.stringify(state));}
 function getJob(name){return state.jobs.find(j=>j.name===name)}
@@ -123,9 +145,37 @@ function openDay(iso){
 $('closeDayBtn').onclick=()=>$('dayDialog').close();
 $('addEventForDayBtn').onclick=()=>{ const iso=selectedDay||todayISO(); $('dayDialog').close(); openEvent({date:iso}); };
 
-function openEvent(e={}){editingEventId=e.id||null; renderSelects(); $('eventTitle').value=e.title||''; $('eventDate').value=e.date||todayISO(); $('eventTime').value=e.time||''; $('eventType').value=e.type||'Chantier'; $('eventJob').value=e.jobName||''; $('eventNotes').value=e.notes||''; $('deleteEventBtn').style.display=editingEventId?'block':'none'; renderEventJobPicker(); $('eventDialog').showModal();}
+function openEvent(e={}){editingEventId=e.id||null; renderSelects(); $('eventTitle').value=e.title||''; $('eventDate').value=e.date||todayISO(); if($('eventEndDate')) $('eventEndDate').value=e.endDate||''; $('eventTime').value=e.time||''; $('eventType').value=e.type||'Chantier'; $('eventJob').value=e.jobName||''; $('eventNotes').value=e.notes||''; $('deleteEventBtn').style.display=editingEventId?'block':'none'; renderEventJobPicker(); $('eventDialog').showModal();}
 $('fillFromJobBtn').onclick=()=>{const j=getJob($('eventJob').value); if(!j){alert('Choisis un chantier dans la liste.');return} if(!$('eventTitle').value.trim()) $('eventTitle').value=j.name+' — chantier'; if(!$('eventNotes').value.trim()) $('eventNotes').value=[j.address,j.notes].filter(Boolean).join(' • '); $('eventType').value='Chantier';};
-$('closeEventBtn').onclick=()=>$('eventDialog').close(); $('saveEventBtn').onclick=(ev)=>{ev.preventDefault(); const obj={id:editingEventId||crypto.randomUUID(),title:$('eventTitle').value.trim()||'Sans titre',date:$('eventDate').value,time:$('eventTime').value,type:$('eventType').value,jobName:$('eventJob').value,notes:$('eventNotes').value}; if(editingEventId){state.events=state.events.map(e=>e.id===editingEventId?obj:e)}else state.events.push(obj); save(); $('eventDialog').close(); render();};
+$('closeEventBtn').onclick=()=>$('eventDialog').close();
+$('saveEventBtn').onclick=(ev)=>{
+ ev.preventDefault();
+ const title=$('eventTitle').value.trim()||'Sans titre';
+ const start=$('eventDate').value;
+ const end=($('eventEndDate')&&$('eventEndDate').value)||'';
+ const time=$('eventTime').value;
+ const type=$('eventType').value;
+ const jobName=$('eventJob').value;
+ const notes=$('eventNotes').value;
+ if(!start){alert('Choisis une date de début.');return}
+ if(editingEventId){
+  const obj={id:editingEventId,title,date:start,endDate:end,time,type,jobName,notes};
+  state.events=state.events.map(e=>e.id===editingEventId?obj:e);
+ }else if(end && end!==start){
+  const startDate=new Date(start+'T12:00:00');
+  const endDate=new Date(end+'T12:00:00');
+  if(endDate<startDate){alert('La date de fin doit être après la date de début.');return}
+  let d=new Date(startDate);
+  while(d<=endDate){
+   const iso=d.toISOString().slice(0,10);
+   state.events.push({id:crypto.randomUUID(),title,date:iso,endDate:end,time,type,jobName,notes});
+   d.setDate(d.getDate()+1);
+  }
+ }else{
+  state.events.push({id:crypto.randomUUID(),title,date:start,endDate:end,time,type,jobName,notes});
+ }
+ save(); $('eventDialog').close(); render();
+};
 $('deleteEventBtn').onclick=()=>{if(editingEventId&&confirm('Supprimer cet événement?')){state.events=state.events.filter(e=>e.id!==editingEventId);save();$('eventDialog').close();render();}}
 function esc(s){return String(s||'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 render();
