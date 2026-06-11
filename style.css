@@ -5,3 +5,10 @@ input[type="color"]{height:48px;padding:4px;background:#fff;border:2px solid #11
 .job-card button{margin-top:8px;margin-right:6px}
 .dot{color:white!important;border-radius:6px;padding:2px 4px;margin-top:3px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px}
 .mini{color:white!important;border-radius:999px;padding:3px 8px;font-size:11px}
+
+.job-picker{display:grid;grid-template-columns:1fr;gap:8px;margin:8px 0 12px}
+.job-pick{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:#111;color:var(--text);border:2px solid #666;border-radius:14px;padding:12px 14px}
+.job-pick.active{background:var(--accent);color:#111;border-color:#fff}
+.job-pick .color-dot{flex:0 0 auto}
+#eventJob{display:block}
+@media(min-width:520px){.job-picker{grid-template-columns:1fr 1fr}}
