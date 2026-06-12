@@ -1,3 +1,3 @@
 # saran-app
 
-V6.7 - bouton mot de passe subtil en bas à droite + tâches assignées.
+V6.8 - UI utilisateur simplifiée: prénom sous le logo, menu compte discret en bas à droite, changer mot de passe avec validation du mot de passe actuel.

@@ -404,3 +404,140 @@ textarea{
 #myTaskAssignee:disabled{
   opacity:.8;
 }
+
+
+/* V6.7 - Bouton mot de passe subtil */
+.floatingPasswordBtn{
+  position:fixed;
+  right:14px;
+  bottom:14px;
+  z-index:80;
+  width:auto;
+  padding:9px 12px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:800;
+  opacity:.72;
+  background:rgba(20,20,20,.78);
+  border:1px solid rgba(255,255,255,.18);
+  color:var(--muted);
+  box-shadow:0 8px 24px rgba(0,0,0,.35);
+  backdrop-filter:blur(10px);
+}
+.floatingPasswordBtn:hover{
+  opacity:1;
+  color:var(--text);
+}
+.passwordModal{
+  position:fixed;
+  inset:0;
+  z-index:90;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  padding:18px;
+  background:rgba(0,0,0,.45);
+}
+.passwordModal.hidden{
+  display:none!important;
+}
+.passwordModal .authCard{
+  width:100%;
+  max-width:420px;
+  margin:0;
+  border-radius:24px;
+}
+.passwordModal .authLogo{
+  display:none;
+}
+.passwordModal h2{
+  font-size:20px;
+}
+
+
+/* V6.8 - En-tête utilisateur simplifié */
+.userMiniLine{
+  max-width:1180px;
+  margin:-6px auto 8px;
+  padding:0 18px;
+  text-align:center;
+}
+.userMiniLine .connectedUser{
+  display:inline-block;
+  font-size:18px;
+  font-weight:900;
+  letter-spacing:.04em;
+  color:var(--text);
+  opacity:.92;
+  padding:6px 14px;
+  border-radius:999px;
+  background:rgba(0,0,0,.18);
+  border:1px solid rgba(255,255,255,.08);
+}
+
+/* Menu compte discret */
+.accountGearBtn{
+  position:fixed;
+  right:14px;
+  bottom:14px;
+  z-index:100;
+  width:44px;
+  height:44px;
+  border-radius:999px;
+  padding:0;
+  font-size:18px;
+  opacity:.78;
+  background:rgba(20,20,20,.84);
+  border:1px solid rgba(255,255,255,.2);
+  color:var(--text);
+  box-shadow:0 8px 24px rgba(0,0,0,.35);
+  backdrop-filter:blur(10px);
+}
+.accountGearBtn:hover{opacity:1}
+
+.accountMenu{
+  position:fixed;
+  right:14px;
+  bottom:66px;
+  z-index:101;
+  display:grid;
+  gap:8px;
+  width:230px;
+  padding:12px;
+  border-radius:18px;
+  background:rgba(18,18,18,.96);
+  border:1px solid rgba(255,255,255,.18);
+  box-shadow:0 18px 48px rgba(0,0,0,.45);
+  backdrop-filter:blur(12px);
+}
+.accountMenu.hidden{display:none!important}
+.accountMenu button{
+  width:100%;
+  text-align:left;
+  padding:12px 14px;
+  border-radius:14px;
+}
+
+/* Retirer l'ancien bouton mot de passe s'il est encore présent */
+.floatingPasswordBtn{display:none!important}
+
+/* Fenêtre mot de passe plus subtile */
+.passwordModal{
+  position:fixed;
+  inset:0;
+  z-index:90;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  padding:18px;
+  background:rgba(0,0,0,.45);
+}
+.passwordModal.hidden{display:none!important}
+.passwordModal .authCard{
+  width:100%;
+  max-width:420px;
+  margin:0;
+  border-radius:24px;
+}
+.passwordModal .authLogo{display:none}
+.passwordModal h2{font-size:20px}

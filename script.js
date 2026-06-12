@@ -86,23 +86,43 @@ async function forgotPassword() {
 }
 
 async function updatePassword() {
+  const current = $('currentPassword') ? $('currentPassword').value : '';
   const p1 = $('newPassword').value;
   const p2 = $('newPassword2').value;
-  $('passwordError').textContent = '';
+
+  if ($('passwordError')) $('passwordError').textContent = '';
+
+  if (!current) {
+    $('passwordError').textContent = 'Entre ton mot de passe actuel.';
+    return;
+  }
   if (!p1 || p1.length < 6) {
     $('passwordError').textContent = 'Mot de passe trop court. Minimum 6 caractères.';
     return;
   }
   if (p1 !== p2) {
-    $('passwordError').textContent = 'Les deux mots de passe ne sont pas identiques.';
+    $('passwordError').textContent = 'Les deux nouveaux mots de passe ne sont pas identiques.';
     return;
   }
+
+  // Valider le mot de passe actuel avant de modifier.
+  const email = currentUser && currentUser.email ? currentUser.email : '';
+  const check = await supabaseClient.auth.signInWithPassword({ email, password: current });
+  if (check.error) {
+    $('passwordError').textContent = 'Mot de passe actuel invalide.';
+    return;
+  }
+
   const { error } = await supabaseClient.auth.updateUser({ password: p1 });
   if (error) {
     $('passwordError').textContent = error.message;
     return;
   }
-  history.replaceState(null, '', window.location.origin);
+
+  if ($('currentPassword')) $('currentPassword').value = '';
+  $('newPassword').value = '';
+  $('newPassword2').value = '';
+  alert('Mot de passe changé avec succès.');
   const { data: { session } } = await supabaseClient.auth.getSession();
   await openSession(session);
 }
@@ -173,7 +193,8 @@ async function openSession(session) {
   state.user = currentProfile.role === 'admin' ? 'jesse' : 'karl';
 
   if ($('connectedUser')) {
-    $('connectedUser').textContent = `${currentProfile.full_name || currentUser.email} — ${currentProfile.role}`;
+    const displayName = currentProfile.full_name || currentUser.email || '';
+    $('connectedUser').textContent = String(displayName).split(' ')[0].split('@')[0];
   }
 
   showApp();
@@ -738,6 +759,9 @@ function setupHandlers() {
   if ($('forgotPasswordBtn')) $('forgotPasswordBtn').onclick = forgotPassword;
   if ($('updatePasswordBtn')) $('updatePasswordBtn').onclick = updatePassword;
   if ($('logoutBtn')) $('logoutBtn').onclick = logout;
+  if ($('accountGearBtn')) $('accountGearBtn').onclick = () => $('accountMenu').classList.toggle('hidden');
+  if ($('menuChangePassword')) $('menuChangePassword').onclick = () => { $('accountMenu').classList.add('hidden'); showPasswordScreen(); };
+  if ($('menuLogout')) $('menuLogout').onclick = logout;
   $('saveJob').onclick = saveJob;
   $('clearJobForm').onclick = clearJob;
   $('prevMonth').onclick = () => { currentMonth.setMonth(currentMonth.getMonth() - 1); renderCalendar(); };

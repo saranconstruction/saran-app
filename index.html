@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Saran Construction App V6.7</title>
+  <title>Saran Construction App V6.8 Compte discret</title>
 
   <meta name="theme-color" content="#0b0b0b" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -40,6 +40,7 @@
       <img src="logo-icon.png" alt="Saran Construction" class="authLogo">
       <h2>Changer le mot de passe</h2>
       <p>Entre ton nouveau mot de passe.</p>
+      <input id="currentPassword" type="password" placeholder="Mot de passe actuel">
       <input id="newPassword" type="password" placeholder="Nouveau mot de passe">
       <input id="newPassword2" type="password" placeholder="Confirmer le mot de passe">
       <button id="updatePasswordBtn" type="button">Changer le mot de passe</button>
@@ -49,11 +50,7 @@
   </section>
 
   <main id="appMain" class="hidden">
-    <section class="card loginCard">
-      <label>Connecté</label>
-      <div id="connectedUser" class="connectedUser">Chargement...</div>
-<button id="logoutBtn" class="secondary logoutBtn" type="button">Déconnexion</button>
-    </section>
+    <section class="userMiniLine"><div id="connectedUser" class="connectedUser">Chargement...</div></section>
 
     <nav class="tabs">
       <button data-tab="today" class="active">Aujourd'hui</button>
@@ -194,6 +191,11 @@
     }
   </script>
 
-  <button id="floatingPasswordBtn" class="floatingPasswordBtn" type="button">⚙️ Mot de passe</button>
+  <div id="accountMenu" class="accountMenu hidden">
+    <button id="menuChangePassword" type="button">Changer le mot de passe</button>
+    <button id="menuLogout" type="button">Déconnexion</button>
+  </div>
+  <button id="accountGearBtn" class="accountGearBtn" type="button">⚙️</button>
+
 </body>
 </html>
