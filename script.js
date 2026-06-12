@@ -749,35 +749,56 @@ function renderAll() {
 }
 
 function setupHandlers() {
+  const setClick = (id, fn) => {
+    const el = $(id);
+    if (el) el.onclick = fn;
+  };
+
   document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+    const tab = b.dataset.tab;
     document.querySelectorAll('.tabs button,.tab').forEach(x => x.classList.remove('active'));
     b.classList.add('active');
-    $(b.dataset.tab).classList.add('active');
+    const page = $(tab);
+    if (page) page.classList.add('active');
     renderAll();
   });
-  $('loginBtn').onclick = signIn;
-  if ($('forgotPasswordBtn')) $('forgotPasswordBtn').onclick = forgotPassword;
-  if ($('updatePasswordBtn')) $('updatePasswordBtn').onclick = updatePassword;
-  if ($('logoutBtn')) $('logoutBtn').onclick = logout;
-  if ($('accountGearBtn')) $('accountGearBtn').onclick = () => $('accountMenu').classList.toggle('hidden');
-  if ($('menuChangePassword')) $('menuChangePassword').onclick = () => { $('accountMenu').classList.add('hidden'); showPasswordScreen(); };
-  if ($('menuLogout')) $('menuLogout').onclick = logout;
-  $('saveJob').onclick = saveJob;
-  $('clearJobForm').onclick = clearJob;
-  $('prevMonth').onclick = () => { currentMonth.setMonth(currentMonth.getMonth() - 1); renderCalendar(); };
-  $('nextMonth').onclick = () => { currentMonth.setMonth(currentMonth.getMonth() + 1); renderCalendar(); };
-  $('addMulti').onclick = addMultiDates;
-  $('punchIn').onclick = punchIn;
-  $('punchOut').onclick = punchOut;
-  $('saveExpense').onclick = saveExpense;
-  if ($('saveMyTask')) $('saveMyTask').onclick = saveMyTasks;
+
+  setClick('loginBtn', signIn);
+  setClick('forgotPasswordBtn', forgotPassword);
+  setClick('updatePasswordBtn', updatePassword);
+  setClick('logoutBtn', logout);
+
+  setClick('accountGearBtn', () => {
+    const menu = $('accountMenu');
+    if (menu) menu.classList.toggle('hidden');
+  });
+  setClick('menuChangePassword', () => {
+    const menu = $('accountMenu');
+    if (menu) menu.classList.add('hidden');
+    showPasswordScreen();
+  });
+  setClick('menuLogout', logout);
+
+  setClick('saveJob', saveJob);
+  setClick('clearJobForm', clearJob);
+  setClick('prevMonth', () => { currentMonth.setMonth(currentMonth.getMonth() - 1); renderCalendar(); });
+  setClick('nextMonth', () => { currentMonth.setMonth(currentMonth.getMonth() + 1); renderCalendar(); });
+  setClick('addMulti', addMultiDates);
+  setClick('punchIn', punchIn);
+  setClick('punchOut', punchOut);
+  setClick('saveExpense', saveExpense);
+  setClick('saveMyTask', saveMyTasks);
+  setClick('exportPayroll', exportPayroll);
+  setClick('exportData', () => download('saran-backup.json', JSON.stringify(state, null, 2), 'application/json'));
   if ($('myTaskDate')) $('myTaskDate').onchange = renderMyTasks;
-  $('exportPayroll').onclick = exportPayroll;
-  $('exportData').onclick = () => download('saran-backup.json', JSON.stringify(state, null, 2), 'application/json');
   if ($('importData')) $('importData').onchange = () => alert('Import désactivé en mode Supabase pour éviter d’écraser la base.');
-  if ($('changePasswordBtn')) $('changePasswordBtn').onclick = () => showPasswordScreen();
-  if ($('floatingPasswordBtn')) $('floatingPasswordBtn').onclick = () => showPasswordScreen();
-  if ($('cancelPasswordBtn')) $('cancelPasswordBtn').onclick = async () => { const { data:{session} } = await supabaseClient.auth.getSession(); if (session) await openSession(session); else showLogin(); };
+  setClick('changePasswordBtn', () => showPasswordScreen());
+  setClick('floatingPasswordBtn', () => showPasswordScreen());
+  setClick('cancelPasswordBtn', async () => {
+    const { data:{session} } = await supabaseClient.auth.getSession();
+    if (session) await openSession(session);
+    else showLogin();
+  });
 }
 
 async function startApp() {
@@ -799,3 +820,5 @@ async function startApp() {
 }
 
 startApp();
+
+window.goTab = goTab;

@@ -541,3 +541,7 @@ textarea{
 }
 .passwordModal .authLogo{display:none}
 .passwordModal h2{font-size:20px}
+
+/* V6.9 - cacher le rôle et stabiliser les clics */
+#roleLabel,.adminBadgeWrap{display:none!important}
+.tabs button{touch-action:manipulation}

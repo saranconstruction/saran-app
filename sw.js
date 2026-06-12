@@ -1,4 +1,4 @@
-const CACHE_NAME = 'saran-app-v65';
+const CACHE_NAME = 'saran-app-v69';
 const APP_SHELL = [
   '/',
   '/index.html',
