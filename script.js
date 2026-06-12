@@ -818,7 +818,52 @@ async function startApp() {
     showLogin('Erreur Supabase: ' + e.message);
   }
 }
+// FIX MENU COMPTE - engrenage bas droite
+document.addEventListener("DOMContentLoaded", () => {
+  let gear = document.getElementById("accountGearBtn");
+  let menu = document.getElementById("accountMenu");
 
+  if (!menu) {
+    menu = document.createElement("div");
+    menu.id = "accountMenu";
+    menu.className = "accountMenu hidden";
+    menu.innerHTML = `
+      <button id="menuChangePassword" type="button">Changer le mot de passe</button>
+      <button id="menuLogout" type="button">Déconnexion</button>
+    `;
+    document.body.appendChild(menu);
+  }
+
+  if (!gear) {
+    gear = document.createElement("button");
+    gear.id = "accountGearBtn";
+    gear.className = "accountGearBtn";
+    gear.type = "button";
+    gear.textContent = "⚙️";
+    document.body.appendChild(gear);
+  }
+
+  gear.addEventListener("click", () => {
+    menu.classList.toggle("hidden");
+  });
+
+  document.getElementById("menuChangePassword")?.addEventListener("click", () => {
+    menu.classList.add("hidden");
+    if (typeof showPasswordScreen === "function") {
+      showPasswordScreen();
+    } else {
+      alert("Fonction changement de mot de passe non trouvée.");
+    }
+  });
+
+  document.getElementById("menuLogout")?.addEventListener("click", () => {
+    if (typeof logout === "function") {
+      logout();
+    } else {
+      alert("Fonction déconnexion non trouvée.");
+    }
+  });
+});
 startApp();
 
 window.goTab = goTab;
