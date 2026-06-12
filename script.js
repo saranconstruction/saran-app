@@ -752,6 +752,7 @@ function setupHandlers() {
   $('exportData').onclick = () => download('saran-backup.json', JSON.stringify(state, null, 2), 'application/json');
   if ($('importData')) $('importData').onchange = () => alert('Import désactivé en mode Supabase pour éviter d’écraser la base.');
   if ($('changePasswordBtn')) $('changePasswordBtn').onclick = () => showPasswordScreen();
+  if ($('floatingPasswordBtn')) $('floatingPasswordBtn').onclick = () => showPasswordScreen();
   if ($('cancelPasswordBtn')) $('cancelPasswordBtn').onclick = async () => { const { data:{session} } = await supabaseClient.auth.getSession(); if (session) await openSession(session); else showLogin(); };
 }
 

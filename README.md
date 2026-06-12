@@ -1,5 +1,3 @@
 # saran-app
 
-V6.6 - Tâches assignées aux employés.
-
-À faire dans Supabase SQL Editor: exécuter v66-supabase-update.sql.
+V6.7 - bouton mot de passe subtil en bas à droite + tâches assignées.
