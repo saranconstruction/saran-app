@@ -363,5 +363,34 @@ display:none;
   margin:0 auto;
 }
 
-.linkBtn{display:block;width:100%;margin-top:12px;padding:12px 14px;background:transparent!important;border:1px solid rgba(255,255,255,.18)!important;color:#f4f1ea!important;border-radius:16px;font-weight:800;}
-#passwordScreen .authCard{max-width:520px;margin:0 auto;}
+
+textarea{
+  width:100%;
+  padding:14px 16px;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.18);
+  background:rgba(0,0,0,.36);
+  color:var(--text);
+  font:inherit;
+  resize:vertical;
+  min-height:110px;
+}
+.taskComposer{
+  display:grid;
+  gap:10px;
+}
+.hint{
+  color:var(--muted);
+  font-size:13px;
+}
+.taskRow span{
+  white-space:pre-line;
+}
+
+#changePasswordBtn{
+  margin-top:10px;
+}
+#passwordScreen .authCard{
+  max-width:520px;
+  margin:0 auto;
+}

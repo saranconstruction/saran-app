@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Saran Construction App V6.1</title>
+  <title>Saran Construction App V6.3 Password + tâches</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -32,11 +32,12 @@
   <section id="passwordScreen" class="authScreen hidden">
     <div class="authCard">
       <img src="logo-icon.png" alt="Saran Construction" class="authLogo">
-      <h2>Nouveau mot de passe</h2>
+      <h2>Changer le mot de passe</h2>
       <p>Entre ton nouveau mot de passe.</p>
       <input id="newPassword" type="password" placeholder="Nouveau mot de passe">
       <input id="newPassword2" type="password" placeholder="Confirmer le mot de passe">
       <button id="updatePasswordBtn" type="button">Changer le mot de passe</button>
+      <button id="cancelPasswordBtn" class="linkBtn" type="button">Annuler</button>
       <div id="passwordError" class="loginError"></div>
     </div>
   </section>
@@ -45,12 +46,14 @@
     <section class="card loginCard">
       <label>Connecté</label>
       <div id="connectedUser" class="connectedUser">Chargement...</div>
+      <button id="changePasswordBtn" class="secondary logoutBtn" type="button">Changer mot de passe</button>
       <button id="logoutBtn" class="secondary logoutBtn" type="button">Déconnexion</button>
     </section>
 
     <nav class="tabs">
       <button data-tab="today" class="active">Aujourd'hui</button>
       <button data-tab="calendar">Calendrier</button>
+      <button data-tab="mytasks">Mes tâches</button>
       <button data-tab="jobs">Chantiers</button>
       <button data-tab="punch">Punch</button>
       <button data-tab="expenses">Dépenses</button>
@@ -75,6 +78,26 @@
 
       <h2 class="todayTitle">Aujourd'hui</h2>
       <div id="todayList"></div>
+    </section>
+
+    
+    <section id="mytasks" class="tab">
+      <h2>Mes tâches</h2>
+      <div class="card taskComposer">
+        <label>Date</label>
+        <input id="myTaskDate" type="date">
+        <label>Chantier</label>
+        <select id="myTaskJob"></select>
+        <label>Tâches / matériaux</label>
+        <textarea id="myTaskText" rows="7" placeholder="Ex:
+1. 2x4
+2. 5 x 2x10
+3. Vis
+4. Ramasser matériaux"></textarea>
+        <button id="saveMyTask" type="button">Ajouter à mes tâches</button>
+        <p class="hint">Enter fait une nouvelle ligne. Chaque ligne devient une tâche séparée.</p>
+      </div>
+      <div id="myTasksList"></div>
     </section>
 
     <section id="calendar" class="tab">

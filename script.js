@@ -168,11 +168,6 @@ async function openSession(session) {
     };
   }
 
-  const userEmail = (currentUser.email || '').trim().toLowerCase();
-  if (userEmail === 'info@saranconstruction.ca') {
-    profile.role = 'admin';
-    profile.full_name = profile.full_name || 'Jesse';
-  }
   currentProfile = profile;
   state.user = currentProfile.role === 'admin' ? 'jesse' : 'karl';
 
@@ -268,8 +263,13 @@ function applyRole() {
   document.querySelectorAll('.adminOnly').forEach(el => el.style.display = admin ? '' : 'none');
 }
 
+function goTab(tab) {
+  const btn = document.querySelector(`.tabs button[data-tab="${tab}"]`);
+  if (btn) btn.click();
+}
+
 function renderSelects() {
-  const selects = ['multiJob', 'punchJob', 'expenseJob'];
+  const selects = ['multiJob', 'punchJob', 'expenseJob', 'myTaskJob'];
   selects.forEach(id => {
     const el = $(id);
     if (!el) return;
@@ -376,7 +376,7 @@ function openDay(iso) {
       <h4>Ajouter une tâche / journée simple</h4>
       <label>Chantier</label>
       <select id="taskJob"><option value="">Aucun chantier / tâche générale</option>${state.jobs.map(j => `<option value="${j.id}">${j.name}</option>`).join('')}</select>
-      <input id="taskTitle" placeholder="Ex: commander matériaux, appeler client, finition PVC">
+      <textarea id="taskTitle" rows="4" placeholder="Ex:\n1. commander matériaux\n2. appeler client\n3. finition PVC"></textarea>
       <input id="taskTime" type="time" value="07:00">
       <button type="button" id="addDayTaskBtn">Ajouter tâche</button>
     </div>
@@ -387,8 +387,13 @@ function openDay(iso) {
   if (btn) btn.onclick = addTaskToDay;
 }
 
+function esc(txt) {
+  return String(txt || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
 function taskHtml(t) {
-  return `<div class="taskRow ${t.done ? 'done' : ''}" onclick="toggleTask('${t.id}')">${t.done ? '☑' : '☐'} ${t.title}</div>`;
+  return `<div class="taskRow ${t.done ? 'done' : ''}" onclick="toggleTask('${t.id}')">${t.done ? '☑' : '☐'} <span>${esc(t.title).replace(/
+/g,'<br>')}</span></div>`;
 }
 
 function eventHtml(e) {
@@ -399,13 +404,16 @@ function eventHtml(e) {
 
 async function addTaskToDay() {
   const jobId = $('taskJob') ? $('taskJob').value : '';
-  const title = $('taskTitle') ? $('taskTitle').value.trim() : '';
+  const rawTitle = $('taskTitle') ? $('taskTitle').value : '';
+  const lines = rawTitle.split('
+').map(x => x.trim()).filter(Boolean);
   const time = $('taskTime') ? $('taskTime').value : '07:00';
-  if (!title) return alert('Écris la tâche à ajouter');
+  if (!lines.length) return alert('Écris la tâche à ajouter');
+
   let eventId = null;
   if (jobId) {
     const j = jobById(jobId);
-    let ev = state.events.find(e => e.date === selectedDate && e.jobId === jobId && !e.seriesId);
+    let ev = state.events.find(e => e.date === selectedDate && e.jobId === jobId);
     if (!ev) {
       const { data, error } = await supabaseClient.from('events').insert({
         job_id: jobId,
@@ -420,14 +428,17 @@ async function addTaskToDay() {
     }
     eventId = ev.id;
   }
-  const { error } = await supabaseClient.from('tasks').insert({
+
+  const rows = lines.map(title => ({
     event_id: eventId,
     job_id: jobId || null,
     task_date: selectedDate,
     title,
     done: false,
     created_by: currentUser.id
-  });
+  }));
+
+  const { error } = await supabaseClient.from('tasks').insert(rows);
   if (error) return alert('Erreur tâche: ' + error.message);
   await loadAllFromSupabase();
   openDay(selectedDate);
@@ -596,6 +607,77 @@ function download(name, txt, type) {
   a.click();
 }
 
+
+async function saveMyTasks() {
+  const date = $('myTaskDate').value || todayISO();
+  const jobId = $('myTaskJob').value || null;
+  const raw = $('myTaskText').value || '';
+  const lines = raw.split('\n').map(x => x.trim()).filter(Boolean);
+  if (!lines.length) return alert('Écris au moins une tâche.');
+
+  let eventId = null;
+  if (jobId) {
+    const j = jobById(jobId);
+    let ev = state.events.find(e => e.date === date && e.jobId === jobId);
+    if (!ev) {
+      const { data, error } = await supabaseClient.from('events').insert({
+        job_id: jobId,
+        event_date: date,
+        start_time: '07:00',
+        title: j ? j.name : 'Tâches',
+        color: j ? j.color : '#333333',
+        created_by: currentUser.id
+      }).select().single();
+      if (error) return alert('Erreur création événement: ' + error.message);
+      ev = { id: data.id, jobId, date, title: data.title, color: data.color };
+    }
+    eventId = ev.id;
+  }
+
+  const rows = lines.map(title => ({
+    event_id: eventId,
+    job_id: jobId,
+    task_date: date,
+    title,
+    done: false,
+    created_by: currentUser.id
+  }));
+
+  const { error } = await supabaseClient.from('tasks').insert(rows);
+  if (error) return alert('Erreur tâches: ' + error.message);
+
+  $('myTaskText').value = '';
+  await loadAllFromSupabase();
+  goTab('mytasks');
+}
+
+function renderMyTasks() {
+  renderSelects();
+  if ($('myTaskDate') && !$('myTaskDate').value) $('myTaskDate').value = todayISO();
+
+  const date = ($('myTaskDate') && $('myTaskDate').value) || todayISO();
+  const list = $('myTasksList');
+  if (!list) return;
+
+  const tasks = state.tasks.filter(t => t.date === date || t.task_date === date);
+  if (!tasks.length) {
+    list.innerHTML = '<div class="card">Aucune tâche pour cette date.</div>';
+    return;
+  }
+
+  const grouped = {};
+  tasks.forEach(t => {
+    const key = t.jobId || 'general';
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(t);
+  });
+
+  list.innerHTML = Object.entries(grouped).map(([jobId, arr]) => {
+    const j = jobById(jobId) || { name: 'Tâches générales' };
+    return `<div class="jobRow"><strong>${esc(j.name)}</strong>${arr.map(t => taskHtml(t)).join('')}</div>`;
+  }).join('');
+}
+
 function renderToday() {
   const iso = todayISO();
   const evs = state.events.filter(e => e.date === iso);
@@ -611,6 +693,7 @@ function renderAll() {
   renderExpenses();
   renderPayroll();
   renderToday();
+  renderMyTasks();
 }
 
 function setupHandlers() {
@@ -623,8 +706,6 @@ function setupHandlers() {
   $('loginBtn').onclick = signIn;
   if ($('forgotPasswordBtn')) $('forgotPasswordBtn').onclick = forgotPassword;
   if ($('updatePasswordBtn')) $('updatePasswordBtn').onclick = updatePassword;
-  if ($('forgotPasswordBtn')) $('forgotPasswordBtn').onclick = forgotPassword;
-  if ($('updatePasswordBtn')) $('updatePasswordBtn').onclick = updatePassword;
   if ($('logoutBtn')) $('logoutBtn').onclick = logout;
   $('saveJob').onclick = saveJob;
   $('clearJobForm').onclick = clearJob;
@@ -634,9 +715,13 @@ function setupHandlers() {
   $('punchIn').onclick = punchIn;
   $('punchOut').onclick = punchOut;
   $('saveExpense').onclick = saveExpense;
+  if ($('saveMyTask')) $('saveMyTask').onclick = saveMyTasks;
+  if ($('myTaskDate')) $('myTaskDate').onchange = renderMyTasks;
   $('exportPayroll').onclick = exportPayroll;
   $('exportData').onclick = () => download('saran-backup.json', JSON.stringify(state, null, 2), 'application/json');
   if ($('importData')) $('importData').onchange = () => alert('Import désactivé en mode Supabase pour éviter d’écraser la base.');
+  if ($('changePasswordBtn')) $('changePasswordBtn').onclick = () => showPasswordScreen();
+  if ($('cancelPasswordBtn')) $('cancelPasswordBtn').onclick = async () => { const { data:{session} } = await supabaseClient.auth.getSession(); if (session) await openSession(session); else showLogin(); };
 }
 
 async function startApp() {
@@ -648,7 +733,7 @@ async function startApp() {
     });
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session && recoveryModeRequested()) showPasswordScreen();
-    else if (session && recoveryModeRequested()) showPasswordScreen();
+    else if (session && typeof recoveryModeRequested === 'function' && recoveryModeRequested()) showPasswordScreen();
     else if (session) await openSession(session);
     else showLogin();
   } catch (e) {

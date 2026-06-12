@@ -1,3 +1,3 @@
 # saran-app
 
-V6.1 - rôle admin corrigé + mot de passe oublié visible.
+Saran Construction App V6.3 - Mes tâches + changement mot de passe direct.
