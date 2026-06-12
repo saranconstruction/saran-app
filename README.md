@@ -1,3 +1,3 @@
 # saran-app
 
-V6.9 - correction navigation/clics + cache PWA forcé + menu compte discret.
+V7.1 - Admin peut ajouter/corriger/supprimer des entrées de punch pour un employé.

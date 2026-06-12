@@ -86,43 +86,23 @@ async function forgotPassword() {
 }
 
 async function updatePassword() {
-  const current = $('currentPassword') ? $('currentPassword').value : '';
   const p1 = $('newPassword').value;
   const p2 = $('newPassword2').value;
-
-  if ($('passwordError')) $('passwordError').textContent = '';
-
-  if (!current) {
-    $('passwordError').textContent = 'Entre ton mot de passe actuel.';
-    return;
-  }
+  $('passwordError').textContent = '';
   if (!p1 || p1.length < 6) {
     $('passwordError').textContent = 'Mot de passe trop court. Minimum 6 caractères.';
     return;
   }
   if (p1 !== p2) {
-    $('passwordError').textContent = 'Les deux nouveaux mots de passe ne sont pas identiques.';
+    $('passwordError').textContent = 'Les deux mots de passe ne sont pas identiques.';
     return;
   }
-
-  // Valider le mot de passe actuel avant de modifier.
-  const email = currentUser && currentUser.email ? currentUser.email : '';
-  const check = await supabaseClient.auth.signInWithPassword({ email, password: current });
-  if (check.error) {
-    $('passwordError').textContent = 'Mot de passe actuel invalide.';
-    return;
-  }
-
   const { error } = await supabaseClient.auth.updateUser({ password: p1 });
   if (error) {
     $('passwordError').textContent = error.message;
     return;
   }
-
-  if ($('currentPassword')) $('currentPassword').value = '';
-  $('newPassword').value = '';
-  $('newPassword2').value = '';
-  alert('Mot de passe changé avec succès.');
+  history.replaceState(null, '', window.location.origin);
   const { data: { session } } = await supabaseClient.auth.getSession();
   await openSession(session);
 }
@@ -193,8 +173,7 @@ async function openSession(session) {
   state.user = currentProfile.role === 'admin' ? 'jesse' : 'karl';
 
   if ($('connectedUser')) {
-    const displayName = currentProfile.full_name || currentUser.email || '';
-    $('connectedUser').textContent = String(displayName).split(' ')[0].split('@')[0];
+    $('connectedUser').textContent = `${currentProfile.full_name || currentUser.email} — ${currentProfile.role}`;
   }
 
   showApp();
@@ -255,7 +234,8 @@ async function loadAllFromSupabase() {
     jobId: p.job_id,
     start: p.punch_in,
     end: p.punch_out,
-    paid_minutes: p.paid_minutes
+    paid_minutes: p.paid_minutes,
+    userId: p.user_id
   }));
 
   const active = (punchesRes.data || []).find(p => p.user_id === currentUser.id && !p.punch_out);
@@ -295,7 +275,7 @@ function goTab(tab) {
 }
 
 function renderSelects() {
-  const selects = ['multiJob', 'punchJob', 'expenseJob', 'myTaskJob'];
+  const selects = ['multiJob', 'punchJob', 'expenseJob', 'myTaskJob', 'manualPunchJob'];
   selects.forEach(id => {
     const el = $(id);
     if (!el) return;
@@ -561,8 +541,95 @@ async function punchOut() {
   await loadAllFromSupabase();
 }
 
+
+function renderEmployeeSelects() {
+  const el = $('manualPunchEmployee');
+  if (!el) return;
+  const profiles = state.profiles && state.profiles.length ? state.profiles : [];
+  const current = el.value;
+  el.innerHTML = profiles.map(p => `<option value="${p.id}">${esc(p.full_name || p.email || 'Employé')}</option>`).join('');
+  if (current) el.value = current;
+  if (!el.value && currentUser) el.value = currentUser.id;
+}
+
+function getProfileName(id) {
+  const p = state.profiles ? state.profiles.find(x => x.id === id) : null;
+  return p ? (p.full_name || p.email || 'Employé') : 'Employé';
+}
+
+function localDateTimeISO(date, time) {
+  // Crée une date locale puis convertit en ISO pour Supabase.
+  return new Date(`${date}T${time || '00:00'}:00`).toISOString();
+}
+
+async function saveManualPunch() {
+  if (!isAdmin()) return alert('Accès admin requis.');
+
+  const userId = $('manualPunchEmployee').value;
+  const jobId = $('manualPunchJob').value;
+  const date = $('manualPunchDate').value || todayISO();
+  const startTime = $('manualPunchStart').value;
+  const endTime = $('manualPunchEnd').value;
+
+  if (!userId || !jobId || !date || !startTime || !endTime) {
+    return alert('Employé, chantier, date, début et fin obligatoires.');
+  }
+
+  const start = localDateTimeISO(date, startTime);
+  const end = localDateTimeISO(date, endTime);
+  if (new Date(end) <= new Date(start)) return alert('L’heure de fin doit être après l’heure de début.');
+
+  const paid = paidMinutes(start, end);
+  const employeeName = getProfileName(userId) + ' (modifié admin)';
+
+  const { error } = await supabaseClient.from('time_entries').insert({
+    user_id: userId,
+    job_id: jobId,
+    punch_in: start,
+    punch_out: end,
+    lunch_minutes: paid >= 270 ? 30 : 0,
+    paid_minutes: paid,
+    note: employeeName
+  });
+
+  if (error) return alert('Erreur ajout punch: ' + error.message);
+  await loadAllFromSupabase();
+  alert('Punch ajouté/corrigé.');
+}
+
+async function deletePunch(id) {
+  if (!isAdmin()) return alert('Accès admin requis.');
+  if (!confirm('Supprimer cette entrée de temps?')) return;
+  const { error } = await supabaseClient.from('time_entries').delete().eq('id', id);
+  if (error) return alert('Erreur suppression punch: ' + error.message);
+  await loadAllFromSupabase();
+}
+
+function editPunch(id) {
+  if (!isAdmin()) return alert('Accès admin requis.');
+  const p = state.punches.find(x => x.id === id);
+  if (!p) return;
+  const start = new Date(p.start);
+  const end = new Date(p.end);
+  if ($('manualPunchEmployee')) {
+    const prof = state.profiles.find(pr => (p.employee || '').includes(pr.full_name) || (p.employee || '').includes(pr.email));
+    if (prof) $('manualPunchEmployee').value = prof.id;
+  }
+  if ($('manualPunchJob')) $('manualPunchJob').value = p.jobId;
+  if ($('manualPunchDate')) $('manualPunchDate').value = start.toISOString().slice(0,10);
+  if ($('manualPunchStart')) $('manualPunchStart').value = start.toTimeString().slice(0,5);
+  if ($('manualPunchEnd')) $('manualPunchEnd').value = end.toTimeString().slice(0,5);
+  // Supprime l'ancienne ligne seulement après confirmation pour éviter les doublons.
+  if (confirm('Charger cette entrée dans le formulaire et supprimer l’ancienne ligne après correction?')) {
+    deletePunch(id);
+  }
+}
+
 function renderPunch() {
   renderSelects();
+  renderEmployeeSelects();
+  if ($('manualPunchDate') && !$('manualPunchDate').value) $('manualPunchDate').value = todayISO();
+
   if (timerInt) clearInterval(timerInt);
   const t = $('timer');
   if (state.activePunch) {
@@ -574,10 +641,12 @@ function renderPunch() {
     upd();
     timerInt = setInterval(upd, 1000);
   } else t.textContent = 'Aucun punch actif';
+
   $('punchHistory').innerHTML = state.punches.slice().reverse().map(p => {
     const j = jobById(p.jobId) || {};
-    return `<div class="punchRow"><strong>${p.employee}</strong> — ${j.name || ''}<br>${fmtDT(p.start)} à ${fmtDT(p.end)}<br>Payé: ${h(p.paid_minutes || paidMinutes(p.start, p.end))} (dîner -30 min si 5h+)</div>`;
-  }).join('');
+    const adminButtons = isAdmin() ? `<br><button onclick="editPunch('${p.id}')">Modifier</button> <button class="danger" onclick="deletePunch('${p.id}')">Supprimer</button>` : '';
+    return `<div class="punchRow"><strong>${p.employee}</strong> — ${j.name || ''}<br>${fmtDT(p.start)} à ${fmtDT(p.end)}<br>Payé: ${h(p.paid_minutes || paidMinutes(p.start, p.end))} (dîner -30 min si 5h+)${adminButtons}</div>`;
+  }).join('') || '<div class="card">Aucune entrée de temps.</div>';
 }
 
 async function saveExpense() {
@@ -620,7 +689,12 @@ function renderExpenses() {
 function renderPayroll() {
   const by = {};
   state.punches.forEach(p => { by[p.employee] = (by[p.employee] || 0) + (p.paid_minutes || paidMinutes(p.start, p.end)); });
-  $('payrollList').innerHTML = Object.entries(by).map(([emp, min]) => `<div class="card"><strong>${emp}</strong><br>Total payé: ${h(min)}</div>`).join('') || '<div class="card">Aucune heure.</div>';
+  const totals = Object.entries(by).map(([emp, min]) => `<div class="card"><strong>${emp}</strong><br>Total payé: ${h(min)}</div>`).join('');
+  const details = state.punches.slice().reverse().map(p => {
+    const j = jobById(p.jobId) || {};
+    return `<div class="punchRow"><strong>${p.employee}</strong> — ${j.name || ''}<br>${fmtDT(p.start)} à ${fmtDT(p.end)}<br>Payé: ${h(p.paid_minutes || paidMinutes(p.start, p.end))}<br><button onclick="editPunch('${p.id}')">Modifier</button> <button class="danger" onclick="deletePunch('${p.id}')">Supprimer</button></div>`;
+  }).join('');
+  $('payrollList').innerHTML = totals + (details ? `<h3>Détail des entrées</h3>${details}` : '') || '<div class="card">Aucune heure.</div>';
 }
 
 function exportPayroll() {
@@ -749,56 +823,32 @@ function renderAll() {
 }
 
 function setupHandlers() {
-  const setClick = (id, fn) => {
-    const el = $(id);
-    if (el) el.onclick = fn;
-  };
-
   document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
-    const tab = b.dataset.tab;
     document.querySelectorAll('.tabs button,.tab').forEach(x => x.classList.remove('active'));
     b.classList.add('active');
-    const page = $(tab);
-    if (page) page.classList.add('active');
+    $(b.dataset.tab).classList.add('active');
     renderAll();
   });
-
-  setClick('loginBtn', signIn);
-  setClick('forgotPasswordBtn', forgotPassword);
-  setClick('updatePasswordBtn', updatePassword);
-  setClick('logoutBtn', logout);
-
-  setClick('accountGearBtn', () => {
-    const menu = $('accountMenu');
-    if (menu) menu.classList.toggle('hidden');
-  });
-  setClick('menuChangePassword', () => {
-    const menu = $('accountMenu');
-    if (menu) menu.classList.add('hidden');
-    showPasswordScreen();
-  });
-  setClick('menuLogout', logout);
-
-  setClick('saveJob', saveJob);
-  setClick('clearJobForm', clearJob);
-  setClick('prevMonth', () => { currentMonth.setMonth(currentMonth.getMonth() - 1); renderCalendar(); });
-  setClick('nextMonth', () => { currentMonth.setMonth(currentMonth.getMonth() + 1); renderCalendar(); });
-  setClick('addMulti', addMultiDates);
-  setClick('punchIn', punchIn);
-  setClick('punchOut', punchOut);
-  setClick('saveExpense', saveExpense);
-  setClick('saveMyTask', saveMyTasks);
-  setClick('exportPayroll', exportPayroll);
-  setClick('exportData', () => download('saran-backup.json', JSON.stringify(state, null, 2), 'application/json'));
+  $('loginBtn').onclick = signIn;
+  if ($('forgotPasswordBtn')) $('forgotPasswordBtn').onclick = forgotPassword;
+  if ($('updatePasswordBtn')) $('updatePasswordBtn').onclick = updatePassword;
+  if ($('logoutBtn')) $('logoutBtn').onclick = logout;
+  $('saveJob').onclick = saveJob;
+  $('clearJobForm').onclick = clearJob;
+  $('prevMonth').onclick = () => { currentMonth.setMonth(currentMonth.getMonth() - 1); renderCalendar(); };
+  $('nextMonth').onclick = () => { currentMonth.setMonth(currentMonth.getMonth() + 1); renderCalendar(); };
+  $('addMulti').onclick = addMultiDates;
+  $('punchIn').onclick = punchIn;
+  $('punchOut').onclick = punchOut;
+  $('saveExpense').onclick = saveExpense;
+  if ($('saveMyTask')) $('saveMyTask').onclick = saveMyTasks;
+  if ($('saveManualPunch')) $('saveManualPunch').onclick = saveManualPunch;
   if ($('myTaskDate')) $('myTaskDate').onchange = renderMyTasks;
+  $('exportPayroll').onclick = exportPayroll;
+  $('exportData').onclick = () => download('saran-backup.json', JSON.stringify(state, null, 2), 'application/json');
   if ($('importData')) $('importData').onchange = () => alert('Import désactivé en mode Supabase pour éviter d’écraser la base.');
-  setClick('changePasswordBtn', () => showPasswordScreen());
-  setClick('floatingPasswordBtn', () => showPasswordScreen());
-  setClick('cancelPasswordBtn', async () => {
-    const { data:{session} } = await supabaseClient.auth.getSession();
-    if (session) await openSession(session);
-    else showLogin();
-  });
+  if ($('changePasswordBtn')) $('changePasswordBtn').onclick = () => showPasswordScreen();
+  if ($('cancelPasswordBtn')) $('cancelPasswordBtn').onclick = async () => { const { data:{session} } = await supabaseClient.auth.getSession(); if (session) await openSession(session); else showLogin(); };
 }
 
 async function startApp() {
@@ -818,52 +868,5 @@ async function startApp() {
     showLogin('Erreur Supabase: ' + e.message);
   }
 }
-// FIX MENU COMPTE - engrenage bas droite
-document.addEventListener("DOMContentLoaded", () => {
-  let gear = document.getElementById("accountGearBtn");
-  let menu = document.getElementById("accountMenu");
 
-  if (!menu) {
-    menu = document.createElement("div");
-    menu.id = "accountMenu";
-    menu.className = "accountMenu hidden";
-    menu.innerHTML = `
-      <button id="menuChangePassword" type="button">Changer le mot de passe</button>
-      <button id="menuLogout" type="button">Déconnexion</button>
-    `;
-    document.body.appendChild(menu);
-  }
-
-  if (!gear) {
-    gear = document.createElement("button");
-    gear.id = "accountGearBtn";
-    gear.className = "accountGearBtn";
-    gear.type = "button";
-    gear.textContent = "⚙️";
-    document.body.appendChild(gear);
-  }
-
-  gear.addEventListener("click", () => {
-    menu.classList.toggle("hidden");
-  });
-
-  document.getElementById("menuChangePassword")?.addEventListener("click", () => {
-    menu.classList.add("hidden");
-    if (typeof showPasswordScreen === "function") {
-      showPasswordScreen();
-    } else {
-      alert("Fonction changement de mot de passe non trouvée.");
-    }
-  });
-
-  document.getElementById("menuLogout")?.addEventListener("click", () => {
-    if (typeof logout === "function") {
-      logout();
-    } else {
-      alert("Fonction déconnexion non trouvée.");
-    }
-  });
-});
 startApp();
-
-window.goTab = goTab;

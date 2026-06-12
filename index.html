@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Saran Construction App V6.9 Navigation fix</title>
+  <title>Saran Construction App V7.1 Punch admin</title>
 
   <meta name="theme-color" content="#0b0b0b" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="Saran App" />
   <link rel="apple-touch-icon" href="logo-icon.png" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=69" />
+  <link rel="stylesheet" href="style.css?v=71" />
 </head>
 <body>
   <header class="topbar dashboardTop fullLogoWatermark">
@@ -35,12 +35,11 @@
     </div>
   </section>
 
-  <section id="passwordScreen" class="authScreen hidden passwordModal">
+  <section id="passwordScreen" class="authScreen hidden">
     <div class="authCard">
       <img src="logo-icon.png" alt="Saran Construction" class="authLogo">
       <h2>Changer le mot de passe</h2>
       <p>Entre ton nouveau mot de passe.</p>
-      <input id="currentPassword" type="password" placeholder="Mot de passe actuel">
       <input id="newPassword" type="password" placeholder="Nouveau mot de passe">
       <input id="newPassword2" type="password" placeholder="Confirmer le mot de passe">
       <button id="updatePasswordBtn" type="button">Changer le mot de passe</button>
@@ -50,7 +49,12 @@
   </section>
 
   <main id="appMain" class="hidden">
-    <section class="userMiniLine"><div id="connectedUser" class="connectedUser">Chargement...</div></section>
+    <section class="card loginCard">
+      <label>Connecté</label>
+      <div id="connectedUser" class="connectedUser">Chargement...</div>
+      <button id="changePasswordBtn" class="secondary logoutBtn" type="button">Changer mot de passe</button>
+      <button id="logoutBtn" class="secondary logoutBtn" type="button">Déconnexion</button>
+    </section>
 
     <nav class="tabs">
       <button data-tab="today" class="active">Aujourd'hui</button>
@@ -149,6 +153,23 @@
         <button id="punchOut" class="secondary">Punch out</button>
         <div id="timer" class="timer">Aucun punch actif</div>
       </div>
+
+      <div class="card adminOnly" id="adminPunchEditor">
+        <h3>Ajouter / corriger une entrée de temps</h3>
+        <label>Employé</label>
+        <select id="manualPunchEmployee"></select>
+        <label>Chantier</label>
+        <select id="manualPunchJob"></select>
+        <label>Date</label>
+        <input id="manualPunchDate" type="date">
+        <label>Début</label>
+        <input id="manualPunchStart" type="time" value="06:30">
+        <label>Fin</label>
+        <input id="manualPunchEnd" type="time" value="15:00">
+        <button id="saveManualPunch" type="button">Enregistrer / corriger punch</button>
+        <p class="hint">Admin seulement. Le dîner de 30 min est retiré automatiquement si la journée dépasse 5 h.</p>
+      </div>
+
       <div id="punchHistory"></div>
     </section>
 
@@ -181,7 +202,7 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="script.js?v=69"></script>
+  <script src="script.js?v=71"></script>
 
   <script>
     if ('serviceWorker' in navigator) {
@@ -190,12 +211,6 @@
       });
     }
   </script>
-
-  <div id="accountMenu" class="accountMenu hidden">
-    <button id="menuChangePassword" type="button">Changer le mot de passe</button>
-    <button id="menuLogout" type="button">Déconnexion</button>
-  </div>
-  <button id="accountGearBtn" class="accountGearBtn" type="button">⚙️</button>
 
 </body>
 </html>
