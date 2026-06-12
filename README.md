@@ -1,5 +1,5 @@
 # saran-app
 
-Saran Construction App V6.5 PWA - installable sur téléphone, sans changer la logique Supabase.
+V6.6 - Tâches assignées aux employés.
 
-Installation iPhone: ouvrir app.saranconstruction.ca dans Safari > Partager > Ajouter à l'écran d'accueil.
+À faire dans Supabase SQL Editor: exécuter v66-supabase-update.sql.

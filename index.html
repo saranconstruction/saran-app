@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Saran Construction App V6.5 PWA</title>
+  <title>Saran Construction App V6.6 Tâches assignées</title>
 
   <meta name="theme-color" content="#0b0b0b" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -88,8 +88,10 @@
 
     
     <section id="mytasks" class="tab">
-      <h2>Mes tâches</h2>
+      <h2 id="myTasksTitle">Mes tâches</h2>
       <div class="card taskComposer">
+        <label>Employé</label>
+        <select id="myTaskAssignee"></select>
         <label>Date</label>
         <input id="myTaskDate" type="date">
         <label>Chantier</label>

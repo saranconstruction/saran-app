@@ -23,6 +23,7 @@ let state = {
   tasks: [],
   punches: [],
   expenses: [],
+  profiles: [],
   activePunch: null,
   user: 'karl'
 };
@@ -180,12 +181,13 @@ async function openSession(session) {
 }
 
 async function loadAllFromSupabase() {
-  const [jobsRes, eventsRes, tasksRes, punchesRes, expensesRes] = await Promise.all([
+  const [jobsRes, eventsRes, tasksRes, punchesRes, expensesRes, profilesRes] = await Promise.all([
     supabaseClient.from('jobs').select('*').order('created_at', { ascending: true }),
     supabaseClient.from('events').select('*').order('event_date', { ascending: true }),
     supabaseClient.from('tasks').select('*').order('created_at', { ascending: true }),
     supabaseClient.from('time_entries').select('*').order('punch_in', { ascending: true }),
-    supabaseClient.from('expenses').select('*').order('created_at', { ascending: true })
+    supabaseClient.from('expenses').select('*').order('created_at', { ascending: true }),
+    supabaseClient.from('profiles').select('*').order('full_name', { ascending: true })
   ]);
 
   if (jobsRes.error) return alert('Erreur jobs: ' + jobsRes.error.message);
@@ -193,6 +195,8 @@ async function loadAllFromSupabase() {
   if (tasksRes.error) return alert('Erreur tâches: ' + tasksRes.error.message);
   if (punchesRes.error) return alert('Erreur punch: ' + punchesRes.error.message);
   if (expensesRes.error) return alert('Erreur dépenses: ' + expensesRes.error.message);
+  if (profilesRes.error) console.warn('Erreur profils:', profilesRes.error.message);
+  state.profiles = profilesRes.data || [];
 
   state.jobs = (jobsRes.data || []).map(j => ({
     id: j.id,
@@ -220,7 +224,8 @@ async function loadAllFromSupabase() {
     jobId: t.job_id,
     date: t.task_date,
     title: t.title,
-    done: !!t.done
+    done: !!t.done,
+    assignedTo: t.assigned_to || null
   }));
 
   state.punches = (punchesRes.data || []).filter(p => p.punch_out).map(p => ({
@@ -393,7 +398,9 @@ function esc(txt) {
 
 function taskHtml(t) {
   const title = esc(t.title).replace(/\n/g, '<br>');
-  return `<div class="taskRow ${t.done ? 'done' : ''}" onclick="toggleTask('${t.id}')">${t.done ? '☑' : '☐'} <span>${title}</span></div>`;
+  const assignee = state.profiles ? state.profiles.find(p => p.id === t.assignedTo) : null;
+  const who = isAdmin() && assignee ? `<small class="assigneeTag">Pour: ${esc(assignee.full_name || assignee.email)}</small>` : '';
+  return `<div class="taskRow ${t.done ? 'done' : ''}" onclick="toggleTask('${t.id}')">${t.done ? '☑' : '☐'} <span>${title}</span>${who}</div>`;
 }
 
 function eventHtml(e) {
@@ -434,7 +441,8 @@ async function addTaskToDay() {
     task_date: selectedDate,
     title,
     done: false,
-    created_by: currentUser.id
+    created_by: currentUser.id,
+    assigned_to: assignee || currentUser.id
   }));
 
   const { error } = await supabaseClient.from('tasks').insert(rows);
@@ -608,6 +616,7 @@ function download(name, txt, type) {
 
 
 async function saveMyTasks() {
+  const assignee = $('myTaskAssignee') ? $('myTaskAssignee').value : (currentUser ? currentUser.id : null);
   const date = $('myTaskDate').value || todayISO();
   const jobId = $('myTaskJob').value || null;
   const raw = $('myTaskText').value || '';
@@ -639,7 +648,8 @@ async function saveMyTasks() {
     task_date: date,
     title,
     done: false,
-    created_by: currentUser.id
+    created_by: currentUser.id,
+    assigned_to: currentUser.id
   }));
 
   const { error } = await supabaseClient.from('tasks').insert(rows);
@@ -650,15 +660,37 @@ async function saveMyTasks() {
   goTab('mytasks');
 }
 
+
+function renderAssignees() {
+  const el = $('myTaskAssignee');
+  if (!el) return;
+
+  const profiles = state.profiles && state.profiles.length ? state.profiles : [
+    { id: currentUser ? currentUser.id : '', full_name: currentProfile ? currentProfile.full_name : 'Moi', email: currentUser ? currentUser.email : '', role: currentProfile ? currentProfile.role : 'employee' }
+  ];
+
+  el.innerHTML = profiles.map(p => `<option value="${p.id}">${esc(p.full_name || p.email || 'Employé')} ${p.role ? '— ' + p.role : ''}</option>`).join('');
+
+  if (!isAdmin()) {
+    el.value = currentUser.id;
+    el.disabled = true;
+  } else {
+    el.disabled = false;
+  }
+}
+
 function renderMyTasks() {
   renderSelects();
+  renderAssignees();
+  if ($('myTasksTitle')) $('myTasksTitle').textContent = isAdmin() ? 'Tâches des employés' : 'Mes tâches';
   if ($('myTaskDate') && !$('myTaskDate').value) $('myTaskDate').value = todayISO();
 
   const date = ($('myTaskDate') && $('myTaskDate').value) || todayISO();
   const list = $('myTasksList');
   if (!list) return;
 
-  const tasks = state.tasks.filter(t => t.date === date || t.task_date === date);
+  let tasks = state.tasks.filter(t => t.date === date || t.task_date === date);
+  if (!isAdmin()) tasks = tasks.filter(t => !t.assignedTo || t.assignedTo === currentUser.id);
   if (!tasks.length) {
     list.innerHTML = '<div class="card">Aucune tâche pour cette date.</div>';
     return;

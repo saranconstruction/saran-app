@@ -394,3 +394,13 @@ textarea{
   max-width:520px;
   margin:0 auto;
 }
+
+.assigneeTag{
+  display:block;
+  margin-top:4px;
+  color:var(--muted);
+  font-size:12px;
+}
+#myTaskAssignee:disabled{
+  opacity:.8;
+}
