@@ -541,7 +541,38 @@ textarea{
 }
 .passwordModal .authLogo{display:none}
 .passwordModal h2{font-size:20px}
+.accountGearBtn {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 9999;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  font-size: 20px;
+}
 
+.accountMenu {
+  position: fixed;
+  right: 14px;
+  bottom: 70px;
+  z-index: 9999;
+  background: #151515;
+  border: 1px solid #444;
+  border-radius: 14px;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.accountMenu.hidden {
+  display: none !important;
+}
+
+.accountMenu button {
+  padding: 12px;
+  border-radius: 10px;
+}
 /* V6.9 - cacher le rôle et stabiliser les clics */
 #roleLabel,.adminBadgeWrap{display:none!important}
 .tabs button{touch-action:manipulation}
