@@ -392,8 +392,8 @@ function esc(txt) {
 }
 
 function taskHtml(t) {
-  return `<div class="taskRow ${t.done ? 'done' : ''}" onclick="toggleTask('${t.id}')">${t.done ? '☑' : '☐'} <span>${esc(t.title).replace(/
-/g,'<br>')}</span></div>`;
+  const title = esc(t.title).replace(/\n/g, '<br>');
+  return `<div class="taskRow ${t.done ? 'done' : ''}" onclick="toggleTask('${t.id}')">${t.done ? '☑' : '☐'} <span>${title}</span></div>`;
 }
 
 function eventHtml(e) {
@@ -405,8 +405,7 @@ function eventHtml(e) {
 async function addTaskToDay() {
   const jobId = $('taskJob') ? $('taskJob').value : '';
   const rawTitle = $('taskTitle') ? $('taskTitle').value : '';
-  const lines = rawTitle.split('
-').map(x => x.trim()).filter(Boolean);
+  const lines = rawTitle.split('\\n').map(x => x.trim()).filter(Boolean);
   const time = $('taskTime') ? $('taskTime').value : '07:00';
   if (!lines.length) return alert('Écris la tâche à ajouter');
 
