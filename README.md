@@ -1,3 +1,3 @@
 # saran-app
 
-V7.1 - Admin peut ajouter/corriger/supprimer des entrées de punch pour un employé.
+V7.2 - Punch admin edit + retour interface propre avec engrenage en bas à droite.

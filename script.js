@@ -173,7 +173,8 @@ async function openSession(session) {
   state.user = currentProfile.role === 'admin' ? 'jesse' : 'karl';
 
   if ($('connectedUser')) {
-    $('connectedUser').textContent = `${currentProfile.full_name || currentUser.email} — ${currentProfile.role}`;
+    const displayName = currentProfile.full_name || currentUser.email || '';
+    $('connectedUser').textContent = String(displayName).split(' ')[0].split('@')[0];
   }
 
   showApp();
@@ -833,6 +834,16 @@ function setupHandlers() {
   if ($('forgotPasswordBtn')) $('forgotPasswordBtn').onclick = forgotPassword;
   if ($('updatePasswordBtn')) $('updatePasswordBtn').onclick = updatePassword;
   if ($('logoutBtn')) $('logoutBtn').onclick = logout;
+  if ($('accountGearBtn')) $('accountGearBtn').onclick = () => {
+    const menu = $('accountMenu');
+    if (menu) menu.classList.toggle('hidden');
+  };
+  if ($('menuChangePassword')) $('menuChangePassword').onclick = () => {
+    const menu = $('accountMenu');
+    if (menu) menu.classList.add('hidden');
+    showPasswordScreen();
+  };
+  if ($('menuLogout')) $('menuLogout').onclick = logout;
   $('saveJob').onclick = saveJob;
   $('clearJobForm').onclick = clearJob;
   $('prevMonth').onclick = () => { currentMonth.setMonth(currentMonth.getMonth() - 1); renderCalendar(); };
