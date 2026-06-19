@@ -502,3 +502,19 @@ textarea{
   border-radius:24px;
 }
 .passwordModal .authLogo{display:none}
+
+/* V8.2 - Punch semaine, tâches simplifiées, dépenses photo */
+.weekCard{border:1px solid rgba(255,255,255,.18)}
+.weekHeader{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.weekHeader h3{margin:0;font-size:22px}
+.weekHeader strong{display:block;color:var(--muted);font-size:14px;margin-top:4px}
+.weekTotals{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:10px 0 14px}
+.miniTotal{padding:12px;border-radius:16px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);display:flex;justify-content:space-between;gap:8px}
+.weekDay{padding:12px;margin:10px 0;border-radius:16px;background:rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.08)}
+.weekDay h4{margin:0 0 10px;display:flex;justify-content:space-between;gap:10px}
+.weekPunchLine{display:grid;grid-template-columns:94px 1fr 70px;gap:8px;align-items:center;padding:8px 0;border-top:1px solid rgba(255,255,255,.07)}
+.weekPunchLine span{color:var(--muted);font-size:13px}.weekPunchLine em{text-align:right;font-style:normal;font-weight:900}
+.photoInputs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0}
+.fileBtn{display:flex;align-items:center;justify-content:center;min-height:46px;border-radius:14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);font-weight:900;text-align:center;cursor:pointer}
+.fileBtn input{display:none}.assigneeTag{display:inline-block;margin-left:8px;opacity:.7;font-size:12px}.softCard{background:rgba(255,255,255,.04)}
+@media(max-width:520px){.weekPunchLine{grid-template-columns:82px 1fr 58px;font-size:13px}.photoInputs{grid-template-columns:1fr}}

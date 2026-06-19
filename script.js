@@ -3,10 +3,34 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const fmtDT = ts => ts ? new Date(ts).toLocaleString('fr-CA', { dateStyle: 'short', timeStyle: 'short' }) : '';
 const minutesBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 60000);
-const paidMinutes = (start, end) => {
+function lunchMinutesFor(start, end, manual = 'auto') {
+  const gross = minutesBetween(start, end);
+  if (manual !== 'auto' && manual !== undefined && manual !== null && manual !== '') return Number(manual) || 0;
+  return gross >= 330 ? 30 : 0; // 5 h 30 brut = dîner automatique
+}
+const paidMinutes = (start, end, manual = 'auto') => {
   const m = minutesBetween(start, end);
-  return Math.max(0, m - (m >= 300 ? 30 : 0));
+  return Math.max(0, m - lunchMinutesFor(start, end, manual));
 };
+function startOfWeek(date) {
+  const d = new Date(date);
+  d.setHours(0,0,0,0);
+  const diff = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - diff);
+  return d;
+}
+function addDays(date, days) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+function isoDateLocal(date) {
+  const d = new Date(date);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0,10);
+}
+function dateOnly(ts) { return isoDateLocal(new Date(ts)); }
+function fmtTime(ts) { return new Date(ts).toLocaleTimeString('fr-CA', { hour:'2-digit', minute:'2-digit' }); }
 const h = min => (min / 60).toFixed(2) + ' h';
 
 let supabaseClient = null;
@@ -15,6 +39,7 @@ let currentUser = null;
 let currentMonth = new Date();
 let editingJobId = null;
 let selectedDate = todayISO();
+let selectedPunchWeek = startOfWeek(new Date());
 let timerInt = null;
 
 let state = {
@@ -236,6 +261,7 @@ async function loadAllFromSupabase() {
     start: p.punch_in,
     end: p.punch_out,
     paid_minutes: p.paid_minutes,
+    lunch_minutes: p.lunch_minutes || 0,
     userId: p.user_id
   }));
 
@@ -254,7 +280,8 @@ async function loadAllFromSupabase() {
     supplier: e.supplier || '',
     amount: Number(e.amount || 0),
     desc: e.description || '',
-    photo: e.receipt_data || ''
+    photo: e.receipt_data || '',
+    userId: e.user_id
   }));
 
   renderAll();
@@ -401,7 +428,7 @@ function esc(txt) {
 function taskHtml(t) {
   const title = esc(t.title).replace(/\n/g, '<br>');
   const assignee = state.profiles ? state.profiles.find(p => p.id === t.assignedTo) : null;
-  const who = isAdmin() && assignee ? `<small class="assigneeTag">Pour: ${esc(assignee.full_name || assignee.email)}</small>` : '';
+  const who = isAdmin() && assignee ? `<small class="assigneeTag">${esc(assignee.full_name || assignee.email)}</small>` : '';
   return `<div class="taskRow ${t.done ? 'done' : ''}" onclick="toggleTask('${t.id}')">${t.done ? '☑' : '☐'} <span>${title}</span>${who}</div>`;
 }
 
@@ -444,7 +471,7 @@ async function addTaskToDay() {
     title,
     done: false,
     created_by: currentUser.id,
-    assigned_to: assignee || currentUser.id
+    assigned_to: null
   }));
 
   const { error } = await supabaseClient.from('tasks').insert(rows);
@@ -532,10 +559,11 @@ async function punchIn() {
 async function punchOut() {
   if (!state.activePunch) return alert('Aucun punch actif');
   const end = new Date().toISOString();
+  const lunch = lunchMinutesFor(state.activePunch.start, end);
   const paid = paidMinutes(state.activePunch.start, end);
   const { error } = await supabaseClient.from('time_entries').update({
     punch_out: end,
-    lunch_minutes: paid >= 270 ? 30 : 0,
+    lunch_minutes: lunch,
     paid_minutes: paid
   }).eq('id', state.activePunch.id);
   if (error) return alert('Erreur punch out: ' + error.message);
@@ -580,7 +608,9 @@ async function saveManualPunch() {
   const end = localDateTimeISO(date, endTime);
   if (new Date(end) <= new Date(start)) return alert('L’heure de fin doit être après l’heure de début.');
 
-  const paid = paidMinutes(start, end);
+  const lunchChoice = $('manualLunchMinutes') ? $('manualLunchMinutes').value : 'auto';
+  const lunch = lunchMinutesFor(start, end, lunchChoice);
+  const paid = Math.max(0, minutesBetween(start, end) - lunch);
   const employeeName = getProfileName(userId) + ' (modifié admin)';
 
   const { error } = await supabaseClient.from('time_entries').insert({
@@ -588,7 +618,7 @@ async function saveManualPunch() {
     job_id: jobId,
     punch_in: start,
     punch_out: end,
-    lunch_minutes: paid >= 270 ? 30 : 0,
+    lunch_minutes: lunch,
     paid_minutes: paid,
     note: employeeName
   });
@@ -643,11 +673,96 @@ function renderPunch() {
     timerInt = setInterval(upd, 1000);
   } else t.textContent = 'Aucun punch actif';
 
-  $('punchHistory').innerHTML = state.punches.slice().reverse().map(p => {
-    const j = jobById(p.jobId) || {};
-    const adminButtons = isAdmin() ? `<br><button onclick="editPunch('${p.id}')">Modifier</button> <button class="danger" onclick="deletePunch('${p.id}')">Supprimer</button>` : '';
-    return `<div class="punchRow"><strong>${p.employee}</strong> — ${j.name || ''}<br>${fmtDT(p.start)} à ${fmtDT(p.end)}<br>Payé: ${h(p.paid_minutes || paidMinutes(p.start, p.end))} (dîner -30 min si 5h+)${adminButtons}</div>`;
-  }).join('') || '<div class="card">Aucune entrée de temps.</div>';
+  renderPunchWeek();
+
+  const weekStart = selectedPunchWeek;
+  const weekEnd = addDays(weekStart, 7);
+  const punches = state.punches
+    .filter(p => new Date(p.start) >= weekStart && new Date(p.start) < weekEnd)
+    .sort((a,b) => new Date(a.start) - new Date(b.start));
+
+  $('punchHistory').innerHTML = punches.map(p => punchRowHtml(p)).join('') || '<div class="card">Aucune entrée cette semaine.</div>';
+}
+
+function punchRowHtml(p) {
+  const j = jobById(p.jobId) || {};
+  const gross = minutesBetween(p.start, p.end);
+  const lunch = p.lunch_minutes ?? lunchMinutesFor(p.start, p.end);
+  const paid = p.paid_minutes || Math.max(0, gross - lunch);
+  const adminButtons = isAdmin() ? `<br><button onclick="editPunch('${p.id}')">Modifier</button> <button class="danger" onclick="deletePunch('${p.id}')">Supprimer</button>` : '';
+  return `<div class="punchRow"><strong>${esc(p.employee)}</strong> — ${esc(j.name || '')}<br>${fmtDT(p.start)} à ${fmtTime(p.end)}<br>Brut: ${h(gross)} · Dîner: ${h(lunch)} · Payé: <strong>${h(paid)}</strong>${adminButtons}</div>`;
+}
+
+function renderPunchWeek() {
+  const weekStart = selectedPunchWeek || startOfWeek(new Date());
+  const weekEnd = addDays(weekStart, 6);
+  if ($('punchWeekLabel')) $('punchWeekLabel').textContent = `${isoDateLocal(weekStart)} au ${isoDateLocal(weekEnd)}`;
+  const box = $('punchWeekSummary');
+  if (!box) return;
+
+  const weekLimit = addDays(weekStart, 7);
+  const punches = state.punches
+    .filter(p => new Date(p.start) >= weekStart && new Date(p.start) < weekLimit)
+    .sort((a,b) => new Date(a.start) - new Date(b.start));
+
+  if (!punches.length) {
+    box.innerHTML = '<div class="card softCard">Aucun punch cette semaine.</div>';
+    return;
+  }
+
+  const days = {};
+  const totalsByEmployee = {};
+  punches.forEach(p => {
+    const d = dateOnly(p.start);
+    if (!days[d]) days[d] = [];
+    days[d].push(p);
+    const paid = p.paid_minutes || paidMinutes(p.start, p.end);
+    totalsByEmployee[p.employee] = (totalsByEmployee[p.employee] || 0) + paid;
+  });
+
+  const totals = Object.entries(totalsByEmployee)
+    .map(([emp, min]) => `<div class="miniTotal"><span>${esc(emp)}</span><strong>${h(min)}</strong></div>`).join('');
+
+  const dayHtml = Object.entries(days).map(([date, arr]) => {
+    const rows = arr.map(p => {
+      const j = jobById(p.jobId) || {};
+      const paid = p.paid_minutes || paidMinutes(p.start, p.end);
+      return `<div class="weekPunchLine"><span>${fmtTime(p.start)}–${fmtTime(p.end)}</span><strong>${esc(j.name || 'Chantier')}</strong><em>${h(paid)}</em></div>`;
+    }).join('');
+    const total = arr.reduce((sum,p) => sum + (p.paid_minutes || paidMinutes(p.start,p.end)), 0);
+    return `<div class="weekDay"><h4>${date} <span>${h(total)}</span></h4>${rows}</div>`;
+  }).join('');
+
+  box.innerHTML = `<div class="weekTotals">${totals}</div>${dayHtml}`;
+}
+
+function selectedExpenseFile() {
+  return ($('expensePhotoCamera') && $('expensePhotoCamera').files[0]) || ($('expensePhotoGallery') && $('expensePhotoGallery').files[0]) || null;
+}
+
+function compressImageFile(file, maxSize = 1400, quality = 0.72) {
+  return new Promise(resolve => {
+    if (!file || !file.type || !file.type.startsWith('image/')) return resolve(null);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        const scale = Math.min(1, maxSize / Math.max(width, height));
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => resolve(reader.result);
+      img.src = reader.result;
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
 }
 
 async function saveExpense() {
@@ -656,50 +771,53 @@ async function saveExpense() {
   const amount = parseFloat($('expenseAmount').value || 0);
   const desc = $('expenseDesc').value.trim();
   if (!jobId || !supplier || !amount) return alert('Chantier, fournisseur et montant obligatoires');
-  const file = $('expensePhoto').files[0];
-  const insertExpense = async photo => {
-    const { error } = await supabaseClient.from('expenses').insert({
-      user_id: currentUser.id,
-      job_id: jobId,
-      supplier,
-      amount,
-      description: desc,
-      receipt_data: photo || null,
-      expense_date: todayISO()
-    });
-    if (error) return alert('Erreur dépense: ' + error.message);
-    ['expenseSupplier', 'expenseAmount', 'expenseDesc'].forEach(id => $(id).value = '');
-    $('expensePhoto').value = '';
-    await loadAllFromSupabase();
-  };
-  if (file) {
-    const r = new FileReader();
-    r.onload = () => insertExpense(r.result);
-    r.readAsDataURL(file);
-  } else insertExpense(null);
+  const file = selectedExpenseFile();
+  const photo = file ? await compressImageFile(file) : null;
+
+  const { error } = await supabaseClient.from('expenses').insert({
+    user_id: currentUser.id,
+    job_id: jobId,
+    supplier,
+    amount,
+    description: desc,
+    receipt_data: photo || null,
+    expense_date: todayISO()
+  });
+  if (error) return alert('Erreur dépense: ' + error.message);
+  ['expenseSupplier', 'expenseAmount', 'expenseDesc'].forEach(id => $(id).value = '');
+  if ($('expensePhotoCamera')) $('expensePhotoCamera').value = '';
+  if ($('expensePhotoGallery')) $('expensePhotoGallery').value = '';
+  if ($('expensePhotoName')) $('expensePhotoName').textContent = 'Aucune photo sélectionnée.';
+  await loadAllFromSupabase();
 }
 
 function renderExpenses() {
   renderSelects();
-  $('expenseList').innerHTML = state.expenses.slice().reverse().map(e => {
+  const list = isAdmin() ? state.expenses : state.expenses.filter(e => e.userId === currentUser.id);
+  $('expenseList').innerHTML = list.slice().reverse().map(e => {
     const j = jobById(e.jobId) || {};
-    return `<div class="expenseRow"><strong>${e.supplier}</strong> — ${j.name || ''}<br>${e.amount.toFixed(2)} $ — ${e.desc || ''}<br>${e.photo ? `<img src="${e.photo}" class="photoThumb">` : ''}</div>`;
+    const who = isAdmin() ? `<small>${esc(getProfileName(e.userId))}</small><br>` : '';
+    return `<div class="expenseRow"><strong>${esc(e.supplier)}</strong> — ${esc(j.name || '')}<br>${who}${e.amount.toFixed(2)} $ — ${esc(e.desc || '')}<br>${e.photo ? `<img src="${e.photo}" class="photoThumb">` : ''}</div>`;
   }).join('') || '<div class="card">Aucune dépense.</div>';
 }
 
 function renderPayroll() {
+  const weekStart = selectedPunchWeek || startOfWeek(new Date());
+  const weekEnd = addDays(weekStart, 7);
+  const punches = state.punches.filter(p => new Date(p.start) >= weekStart && new Date(p.start) < weekEnd).sort((a,b) => new Date(a.start) - new Date(b.start));
   const by = {};
-  state.punches.forEach(p => { by[p.employee] = (by[p.employee] || 0) + (p.paid_minutes || paidMinutes(p.start, p.end)); });
-  const totals = Object.entries(by).map(([emp, min]) => `<div class="card"><strong>${emp}</strong><br>Total payé: ${h(min)}</div>`).join('');
-  const details = state.punches.slice().reverse().map(p => {
-    const j = jobById(p.jobId) || {};
-    return `<div class="punchRow"><strong>${p.employee}</strong> — ${j.name || ''}<br>${fmtDT(p.start)} à ${fmtDT(p.end)}<br>Payé: ${h(p.paid_minutes || paidMinutes(p.start, p.end))}<br><button onclick="editPunch('${p.id}')">Modifier</button> <button class="danger" onclick="deletePunch('${p.id}')">Supprimer</button></div>`;
-  }).join('');
-  $('payrollList').innerHTML = totals + (details ? `<h3>Détail des entrées</h3>${details}` : '') || '<div class="card">Aucune heure.</div>';
+  punches.forEach(p => { by[p.employee] = (by[p.employee] || 0) + (p.paid_minutes || paidMinutes(p.start, p.end)); });
+  const label = `<div class="card"><strong>Semaine ${isoDateLocal(weekStart)} au ${isoDateLocal(addDays(weekStart,6))}</strong></div>`;
+  const totals = Object.entries(by).map(([emp, min]) => `<div class="card"><strong>${esc(emp)}</strong><br>Total payé: ${h(min)}</div>`).join('');
+  const details = punches.map(p => punchRowHtml(p)).join('');
+  $('payrollList').innerHTML = label + totals + (details ? `<h3>Détail des entrées</h3>${details}` : '') || '<div class="card">Aucune heure.</div>';
 }
 
 function exportPayroll() {
-  let csv = 'Employe,Chantier,Debut,Fin,Minutes payees\n' + state.punches.map(p => `${p.employee},${(jobById(p.jobId) || {}).name || ''},${p.start},${p.end},${p.paid_minutes || paidMinutes(p.start, p.end)}`).join('\n');
+  const weekStart = selectedPunchWeek || startOfWeek(new Date());
+  const weekEnd = addDays(weekStart, 7);
+  const punches = state.punches.filter(p => new Date(p.start) >= weekStart && new Date(p.start) < weekEnd);
+  let csv = 'Employe,Chantier,Debut,Fin,Diner minutes,Minutes payees\n' + punches.map(p => `${p.employee},${(jobById(p.jobId) || {}).name || ''},${p.start},${p.end},${p.lunch_minutes || lunchMinutesFor(p.start,p.end)},${p.paid_minutes || paidMinutes(p.start, p.end)}`).join('\n');
   download('paye.csv', csv, 'text/csv');
 }
 
@@ -745,7 +863,7 @@ async function saveMyTasks() {
     title,
     done: false,
     created_by: currentUser.id,
-    assigned_to: currentUser.id
+    assigned_to: assignee || null
   }));
 
   const { error } = await supabaseClient.from('tasks').insert(rows);
@@ -765,7 +883,8 @@ function renderAssignees() {
     { id: currentUser ? currentUser.id : '', full_name: currentProfile ? currentProfile.full_name : 'Moi', email: currentUser ? currentUser.email : '', role: currentProfile ? currentProfile.role : 'employee' }
   ];
 
-  el.innerHTML = profiles.map(p => `<option value="${p.id}">${esc(p.full_name || p.email || 'Employé')} ${p.role ? '— ' + p.role : ''}</option>`).join('');
+  const general = isAdmin() ? '<option value="">Tâche de journée / générale</option>' : '';
+  el.innerHTML = general + profiles.map(p => `<option value="${p.id}">${esc(p.full_name || p.email || 'Employé')} ${p.role ? '— ' + p.role : ''}</option>`).join('');
 
   if (!isAdmin()) {
     el.value = currentUser.id;
@@ -778,7 +897,7 @@ function renderAssignees() {
 function renderMyTasks() {
   renderSelects();
   renderAssignees();
-  if ($('myTasksTitle')) $('myTasksTitle').textContent = isAdmin() ? 'Tâches des employés' : 'Mes tâches';
+  if ($('myTasksTitle')) $('myTasksTitle').textContent = 'Tâches';
   if ($('myTaskDate') && !$('myTaskDate').value) $('myTaskDate').value = todayISO();
 
   const date = ($('myTaskDate') && $('myTaskDate').value) || todayISO();
@@ -854,6 +973,9 @@ function setupHandlers() {
   $('saveExpense').onclick = saveExpense;
   if ($('saveMyTask')) $('saveMyTask').onclick = saveMyTasks;
   if ($('saveManualPunch')) $('saveManualPunch').onclick = saveManualPunch;
+  if ($('prevPunchWeek')) $('prevPunchWeek').onclick = () => { selectedPunchWeek = addDays(selectedPunchWeek, -7); renderAll(); };
+  if ($('nextPunchWeek')) $('nextPunchWeek').onclick = () => { selectedPunchWeek = addDays(selectedPunchWeek, 7); renderAll(); };
+  ['expensePhotoCamera','expensePhotoGallery'].forEach(id => { if ($(id)) $(id).onchange = () => { const f = selectedExpenseFile(); if ($('expensePhotoName')) $('expensePhotoName').textContent = f ? f.name : 'Aucune photo sélectionnée.'; }; });
   if ($('myTaskDate')) $('myTaskDate').onchange = renderMyTasks;
   $('exportPayroll').onclick = exportPayroll;
   $('exportData').onclick = () => download('saran-backup.json', JSON.stringify(state, null, 2), 'application/json');
