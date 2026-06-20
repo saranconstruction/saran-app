@@ -1,1 +1,1 @@
-Saran App V10.6.3 - Multi-photos + retour admin corrigé dans engrenage et bouton secours visible.
+Saran App V10.7 - fiche chantier compacte, onglets photos/notes/documents, multi-photos, retour admin, partage Supabase.

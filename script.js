@@ -1484,3 +1484,117 @@ startApp();
   window.addEventListener('load', syncAdminReturnUI);
   setInterval(syncAdminReturnUI, 1200);
 })();
+
+/* =========================
+   V10.7 - Fiche chantier compacte
+   ========================= */
+(function(){
+  function el(id){ return document.getElementById(id); }
+  function jobCounts(jobId){
+    return {
+      photos: (typeof jobPhotos === 'function' ? jobPhotos(jobId) : []).length,
+      notes: (typeof jobNotes === 'function' ? jobNotes(jobId) : []).length,
+      docs: (typeof jobDocuments === 'function' ? jobDocuments(jobId) : []).length,
+      tasks: (state.tasks || []).filter(t => t.jobId === jobId).length,
+      expenses: (state.expenses || []).filter(e => e.jobId === jobId).length,
+      punches: (state.punches || []).filter(p => p.jobId === jobId).length
+    };
+  }
+  function compactJobCard(j){
+    const c = jobCounts(j.id);
+    return `<div class="jobCompactCard" onclick="openJobDetail('${j.id}','infos')">
+      <div class="jobCompactTop">
+        <div><strong><span class="colorDot" style="background:${j.color || '#444'}"></span>${esc(j.name)}</strong><p>${esc(j.address || 'Aucune adresse')}</p></div>
+        <button type="button" onclick="event.stopPropagation();openJobDetail('${j.id}','infos')">Ouvrir</button>
+      </div>
+      <div class="jobCompactStats">
+        <span>📸 ${c.photos}</span><span>📝 ${c.notes}</span><span>📎 ${c.docs}</span><span>✅ ${c.tasks}</span><span>💵 ${c.expenses}</span>
+      </div>
+      <div class="jobCompactActions">
+        <button type="button" onclick="event.stopPropagation();openJobDetail('${j.id}','photos')">Photos</button>
+        <button type="button" onclick="event.stopPropagation();openJobDetail('${j.id}','notes')">Notes</button>
+        <button type="button" onclick="event.stopPropagation();openJobDetail('${j.id}','documents')">Documents</button>
+        ${isAdmin() ? `<button type="button" onclick="event.stopPropagation();editJob('${j.id}')">Modifier</button><button type="button" class="danger" onclick="event.stopPropagation();deleteJob('${j.id}')">Supprimer</button>` : ''}
+      </div>
+    </div>`;
+  }
+  window.renderJobs = function(){
+    const list = el('jobList');
+    if (!list) return;
+    const warning = (typeof jobFilesReady === 'function' && jobFilesReady()) ? '' : `<div class="card warningCard"><strong>Partage photos/notes non activé</strong><br>${typeof jobExtrasMissingMessage === 'function' ? jobExtrasMissingMessage() : ''}</div>`;
+    list.innerHTML = warning + `<div class="jobListHeader"><div><h3>Liste des chantiers</h3><p class="hint">Clique sur un chantier pour ouvrir sa fiche. Les photos, notes et documents ne sont plus tous affichés dans la liste.</p></div><button type="button" onclick="location.reload()">Rafraîchir</button></div>` + ((state.jobs || []).map(compactJobCard).join('') || '<div class="card">Aucun chantier.</div>');
+    if (window.saranOpenJobId) setTimeout(function(){ renderJobDetail(window.saranOpenJobId, window.saranOpenJobTab || 'infos'); }, 0);
+  };
+  function ensureJobModal(){
+    let modal = el('jobDetailModal');
+    if (modal) return modal;
+    modal = document.createElement('div');
+    modal.id = 'jobDetailModal';
+    modal.className = 'jobDetailModal hidden';
+    modal.innerHTML = '<div class="jobDetailBackdrop" onclick="closeJobDetail()"></div><div class="jobDetailSheet"><div id="jobDetailContent"></div></div>';
+    document.body.appendChild(modal);
+    return modal;
+  }
+  window.openJobDetail = function(jobId, tab){
+    window.saranOpenJobId = jobId;
+    window.saranOpenJobTab = tab || 'infos';
+    const modal = ensureJobModal();
+    modal.classList.remove('hidden');
+    renderJobDetail(jobId, tab || 'infos');
+  };
+  window.closeJobDetail = function(){
+    window.saranOpenJobId = null;
+    const modal = el('jobDetailModal');
+    if (modal) modal.classList.add('hidden');
+  };
+  window.setJobDetailTab = function(tab){
+    if (!window.saranOpenJobId) return;
+    window.saranOpenJobTab = tab;
+    renderJobDetail(window.saranOpenJobId, tab);
+  };
+  function tabBtn(tab, label){
+    const active = (window.saranOpenJobTab || 'infos') === tab ? 'active' : '';
+    return `<button type="button" class="${active}" onclick="setJobDetailTab('${tab}')">${label}</button>`;
+  }
+  window.renderJobDetail = function(jobId, tab){
+    const j = jobById(jobId);
+    const box = el('jobDetailContent');
+    if (!j || !box) return;
+    window.saranOpenJobTab = tab || window.saranOpenJobTab || 'infos';
+    const photos = typeof jobPhotos === 'function' ? jobPhotos(jobId) : [];
+    const notes = typeof jobNotes === 'function' ? jobNotes(jobId) : [];
+    const docs = typeof jobDocuments === 'function' ? jobDocuments(jobId) : [];
+    const tasks = (state.tasks || []).filter(t => t.jobId === jobId);
+    const expenses = (state.expenses || []).filter(e => e.jobId === jobId);
+    const punches = (state.punches || []).filter(p => p.jobId === jobId);
+    let body = '';
+    if (window.saranOpenJobTab === 'photos') {
+      body = `<div class="jobDetailSection"><div class="photoInputs"><label class="fileBtn">📷 Prendre photo<input class="hiddenFile" id="detailJobCam_${jobId}" type="file" accept="image/*" capture="environment" onchange="addJobPhoto('${jobId}','detailJobCam_${jobId}')"></label><label class="fileBtn">🖼️ Choisir plusieurs photos<input class="hiddenFile" id="detailJobGal_${jobId}" type="file" accept="image/*" multiple onchange="addJobPhoto('${jobId}','detailJobGal_${jobId}')"></label></div><p class="hint">Tu peux sélectionner plusieurs photos d’un coup.</p><div class="jobMediaGrid detailGrid">${photos.map(p => `<div class="jobMediaItem"><a href="${esc(p.url)}" target="_blank" rel="noopener"><img src="${esc(p.url)}" class="jobMediaThumb"></a>${isAdmin()?`<button class="secondary compactBtn" onclick="deleteJobPhoto('${jobId}','${p.id}')">Retirer</button>`:''}</div>`).join('') || '<div class="emptyState">Aucune photo pour ce chantier.</div>'}</div></div>`;
+    } else if (window.saranOpenJobTab === 'notes') {
+      body = `<div class="jobDetailSection"><textarea id="jobNoteInput_${jobId}" rows="4" placeholder="Ajouter une note de chantier visible par tout le monde..."></textarea><button type="button" onclick="saveJobJournalNote('${jobId}')">Ajouter note</button><div class="jobNotesList">${notes.map(n => `<div class="jobNoteItem"><small>${fmtDT(n.createdAt)} · ${esc(n.author || '')}</small><div>${esc(n.note).replace(/\n/g,'<br>')}</div>${isAdmin()?`<button class="secondary compactBtn" onclick="deleteJobNote('${jobId}','${n.id}')">Supprimer note</button>`:''}</div>`).join('') || '<p class="hint">Aucune note pour ce chantier.</p>'}</div></div>`;
+    } else if (window.saranOpenJobTab === 'documents') {
+      body = `<div class="jobDetailSection"><div class="photoInputs"><label class="fileBtn">📎 Ajouter document<input class="hiddenFile" id="detailJobDoc_${jobId}" type="file" accept="application/pdf,image/*,.doc,.docx,.xls,.xlsx,.txt" onchange="addJobDocument('${jobId}','detailJobDoc_${jobId}')"></label></div><div class="jobDocList">${docs.map(d => `<div class="jobDocItem"><a href="${esc(d.url)}" target="_blank" rel="noopener">📎 ${esc(d.name || 'Document')}</a>${isAdmin()?`<button class="secondary compactBtn" onclick="deleteJobDocument('${jobId}','${d.id}')">Retirer</button>`:''}</div>`).join('') || '<span class="hint">Aucun document pour ce chantier.</span>'}</div></div>`;
+    } else if (window.saranOpenJobTab === 'tasks') {
+      body = `<div class="jobDetailSection">${tasks.map(t => taskHtml(t)).join('') || '<div class="emptyState">Aucune tâche liée à ce chantier.</div>'}</div>`;
+    } else if (window.saranOpenJobTab === 'money') {
+      const totalExp = expenses.reduce((s,e)=>s+Number(e.amount||0),0);
+      const totalMin = punches.reduce((s,p)=>s+(p.paid_minutes || paidMinutes(p.start,p.end)),0);
+      body = `<div class="jobDetailSection"><div class="jobDetailStats"><div><small>Dépenses</small><strong>${totalExp.toFixed(2)} $</strong></div><div><small>Heures</small><strong>${h(totalMin)}</strong></div></div><h4>Dépenses</h4>${expenses.map(e => `<div class="miniLine"><small>${esc(e.date||'')}</small><strong>${esc(e.supplier||'')}</strong><span>${Number(e.amount||0).toFixed(2)} $</span></div>`).join('') || '<p class="hint">Aucune dépense.</p>'}<h4>Heures</h4>${punches.map(p => punchRowHtml(p)).join('') || '<p class="hint">Aucune heure.</p>'}</div>`;
+    } else {
+      body = `<div class="jobDetailSection"><p><strong>Adresse :</strong> ${esc(j.address || 'Aucune adresse')}</p><p><strong>Téléphone :</strong> ${esc(j.phone || 'Aucun téléphone')}</p><p><strong>Notes :</strong><br>${esc(j.notes || 'Aucune note générale').replace(/\n/g,'<br>')}</p><div class="jobDetailStats"><div><small>Photos</small><strong>${photos.length}</strong></div><div><small>Notes</small><strong>${notes.length}</strong></div><div><small>Documents</small><strong>${docs.length}</strong></div><div><small>Tâches</small><strong>${tasks.length}</strong></div></div>${isAdmin()?`<button type="button" onclick="closeJobDetail();editJob('${jobId}')">Modifier les infos</button>`:''}</div>`;
+    }
+    box.innerHTML = `<div class="jobDetailHead"><div><small>Fiche chantier</small><h2><span class="colorDot" style="background:${j.color || '#444'}"></span>${esc(j.name)}</h2></div><button type="button" class="secondary" onclick="closeJobDetail()">Fermer</button></div><div class="jobDetailTabs">${tabBtn('infos','Infos')}${tabBtn('photos','Photos')}${tabBtn('notes','Notes')}${tabBtn('documents','Documents')}${tabBtn('tasks','Tâches')}${tabBtn('money','Dépenses / Heures')}</div>${body}`;
+  };
+  function refreshDetailSoon(){
+    if (window.saranOpenJobId) setTimeout(function(){ renderJobDetail(window.saranOpenJobId, window.saranOpenJobTab || 'infos'); }, 250);
+  }
+  ['addJobPhoto','addJobDocument','saveJobJournalNote','deleteJobPhoto','deleteJobDocument','deleteJobNote'].forEach(function(name){
+    const original = window[name];
+    if (typeof original === 'function' && !original.__v107Wrapped) {
+      const wrapped = async function(){ const r = await original.apply(this, arguments); refreshDetailSoon(); return r; };
+      wrapped.__v107Wrapped = true;
+      window[name] = wrapped;
+    }
+  });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeJobDetail(); });
+})();
