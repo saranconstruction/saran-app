@@ -592,3 +592,59 @@ input,select,textarea{background:rgba(255,255,255,.62)!important;color:var(--tex
 
 @media(max-width:980px){main{padding:22px 18px 90px!important}.tabs{position:sticky!important;top:0!important;left:auto!important;bottom:auto!important;width:auto!important;flex-direction:row!important;overflow:auto!important;margin:-22px -18px 18px!important;padding:10px 12px!important;border-right:0!important;border-bottom:1px solid rgba(0,0,0,.07)!important}.tabs:before{display:none}.tabs button{width:auto!important;min-width:116px!important}.userMiniLine{position:static!important;text-align:right;margin:0 0 12px}.kpiGrid{grid-template-columns:repeat(2,1fr)}.dashGrid{grid-template-columns:1fr}.bigPunchRow{grid-template-columns:1fr}.widePanel{grid-column:auto}}
 @media(max-width:560px){.kpiGrid{grid-template-columns:1fr}.tabs button{min-width:96px!important;font-size:13px!important}.tabs button .navIcon{display:none}.calendarGrid{gap:5px!important;padding:6px!important}.day{min-height:82px!important;padding:6px!important}.eventPill{font-size:9px!important}.settingsPanel{left:12px!important;right:12px!important;width:auto!important}.accountGearBtn{right:14px!important;bottom:14px!important}}
+
+
+/* =========================
+   V10.2 - Gear/theme + mobile polish
+   ========================= */
+body[data-theme="sand"]{--bg:#f3eadb;--bg2:#ece0cf;--panel:#fffaf1;--panel2:#f6edde;--line:#dccdb8;--line2:#cbb89a;--text:#182015;--muted:#786e60;--accent:#1d3a23;--accent2:#ead08c;--accentText:#ffffff;}
+.themeBtn.activeTheme{background:var(--accent)!important;color:var(--accentText)!important;border-color:var(--accent)!important;}
+.themeBtn.activeTheme .swatch{border-color:rgba(255,255,255,.85);box-shadow:0 0 0 2px rgba(255,255,255,.22)}
+.settingsPanel{max-height:min(74vh,680px)!important;overflow:auto!important;-webkit-overflow-scrolling:touch!important;}
+.settingsPanel:not(.hidden){display:block!important;}
+.accountGearBtn{display:flex!important;align-items:center!important;justify-content:center!important;touch-action:manipulation!important;}
+
+@media(max-width:980px){
+  body{font-size:14px!important;background:linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%)!important;}
+  main{padding:12px 12px 88px!important;}
+  .userMiniLine{position:sticky!important;top:0!important;z-index:60!important;margin:0 -12px 10px!important;padding:8px 12px!important;background:linear-gradient(180deg,var(--bg),rgba(255,255,255,.45))!important;backdrop-filter:blur(10px);}
+  .userMiniLine .connectedUser{font-size:14px!important;padding:8px 12px!important;}
+  .tabs{position:sticky!important;top:42px!important;z-index:55!important;margin:0 -12px 12px!important;padding:8px 10px!important;display:flex!important;flex-direction:row!important;gap:8px!important;width:auto!important;overflow-x:auto!important;overflow-y:hidden!important;background:linear-gradient(90deg,#132719,#18301f)!important;border-radius:0!important;scrollbar-width:none;}
+  .tabs::-webkit-scrollbar{display:none;}
+  .tabs button{height:42px!important;min-width:max-content!important;width:auto!important;padding:0 13px!important;border-radius:999px!important;font-size:13px!important;flex:0 0 auto!important;}
+  .tabs button .navIcon{display:inline-flex!important;width:20px!important;height:20px!important;font-size:12px!important;border-radius:6px!important;}
+  h2{font-size:23px!important;}
+  .sectionHead h2{font-size:24px!important;}
+  .dashHeader{margin-bottom:12px!important;}
+  .dashHeader p{font-size:13px!important;}
+  .kpiGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;}
+  .kpiCard{min-height:112px!important;padding:14px!important;}
+  .kpiCard strong{font-size:22px!important;}
+  .kpiCard small{font-size:10px!important;}
+  .dashGrid{grid-template-columns:1fr!important;gap:12px!important;}
+  .bigPunchRow{grid-template-columns:1fr!important;gap:10px!important;padding:16px!important;}
+  .bigClock{font-size:28px!important;}
+  .dashPanel .panelHead{height:50px!important;padding:0 14px!important;}
+  .miniLine{grid-template-columns:76px 1fr auto!important;gap:8px!important;font-size:13px!important;}
+  .calendarGrid{gap:5px!important;padding:6px!important;border-radius:16px!important;}
+  .dayName{font-size:10px!important;padding:4px 0!important;}
+  .day{min-height:86px!important;padding:6px!important;border-radius:12px!important;}
+  .dateNum{font-size:12px!important;}
+  .eventPill{font-size:9px!important;padding:4px 5px!important;border-radius:7px!important;}
+  .accountGearBtn{right:14px!important;bottom:14px!important;width:56px!important;height:56px!important;font-size:24px!important;box-shadow:0 12px 32px rgba(0,0,0,.22)!important;}
+  .settingsPanel{left:10px!important;right:10px!important;bottom:82px!important;width:auto!important;max-height:70vh!important;border-radius:22px!important;}
+  .settingsGroup{padding:12px!important;gap:7px!important;}
+  .settingsPanel button{padding:12px!important;border-radius:12px!important;font-size:14px!important;}
+}
+@media(max-width:560px){
+  main{padding-bottom:86px!important;}
+  .kpiGrid{grid-template-columns:1fr 1fr!important;}
+  .kpiCard{min-height:104px!important;}
+  .kpiIcon{width:28px!important;height:28px!important;}
+  .kpiCard strong{font-size:19px!important;}
+  .kpiCard span{font-size:12px!important;}
+  .calendarGrid{grid-template-columns:repeat(7,minmax(38px,1fr))!important;}
+  .day{min-height:78px!important;}
+  .photoInputs{grid-template-columns:1fr!important;}
+  .two{grid-template-columns:1fr!important;}
+}

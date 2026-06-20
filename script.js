@@ -1153,3 +1153,47 @@ const oldSetupHandlersV10 = setupHandlers;
 setupHandlers = function(){ oldSetupHandlersV10(); setupV10Handlers(); };
 
 startApp();
+
+
+/* V10.2 - réglages/thèmes robustes: fonctionne même si les anciens handlers se contredisent */
+(function(){
+  const THEME_KEY_A = 'saran_theme';
+  const THEME_KEY_B = 'saranTheme';
+  const themes = ['sand','forest','slate','bronze','night'];
+  function $(id){ return document.getElementById(id); }
+  function saveTheme(t){
+    t = themes.includes(t) ? t : 'sand';
+    document.body.setAttribute('data-theme', t);
+    document.documentElement.setAttribute('data-theme', t);
+    try { localStorage.setItem(THEME_KEY_A, t); localStorage.setItem(THEME_KEY_B, t); } catch(e) {}
+    document.querySelectorAll('.themeBtn').forEach(btn => {
+      btn.classList.toggle('activeTheme', btn.dataset.theme === t);
+      btn.setAttribute('aria-pressed', btn.dataset.theme === t ? 'true' : 'false');
+    });
+  }
+  function openMenu(){ const m=$('accountMenu'); if(m) m.classList.remove('hidden'); }
+  function closeMenu(){ const m=$('accountMenu'); if(m) m.classList.add('hidden'); }
+  function toggleMenu(){ const m=$('accountMenu'); if(m) m.classList.toggle('hidden'); }
+  function bind(){
+    const saved = (localStorage.getItem(THEME_KEY_A) || localStorage.getItem(THEME_KEY_B) || 'sand');
+    saveTheme(saved);
+    const gear = $('accountGearBtn');
+    if (gear) {
+      gear.onclick = null;
+      gear.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); toggleMenu(); }, true);
+      gear.addEventListener('touchend', function(e){ e.preventDefault(); e.stopPropagation(); toggleMenu(); }, {capture:true, passive:false});
+    }
+    const close = $('closeSettings');
+    if (close) close.addEventListener('click', function(e){ e.preventDefault(); closeMenu(); }, true);
+    document.addEventListener('click', function(e){
+      const btn = e.target.closest && e.target.closest('.themeBtn');
+      if (btn) { e.preventDefault(); e.stopPropagation(); saveTheme(btn.dataset.theme || 'sand'); return; }
+      const menu = $('accountMenu'); const gear = $('accountGearBtn');
+      if (menu && gear && !menu.classList.contains('hidden') && !menu.contains(e.target) && !gear.contains(e.target)) closeMenu();
+    }, true);
+    document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeMenu(); });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind); else bind();
+  window.addEventListener('load', bind);
+  window.saranApplyTheme = saveTheme;
+})();

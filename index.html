@@ -264,19 +264,19 @@
     <div class="settingsGroup">
       <small>Application</small>
       <button id="clearAppCache" type="button">Vider cache / rafraîchir</button>
-      <p class="hint">Saran App V10.1 Pro</p>
+      <p class="hint">Saran App V10.2 Pro</p>
     </div>
   </div>
   <button id="accountGearBtn" class="accountGearBtn" type="button" aria-label="Réglages">⚙️</button>
 
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="script.js?v=101pro"></script>
+  <script src="script.js?v=102pro"></script>
 
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js?v=101pro').catch(() => {});
+        navigator.serviceWorker.register('/sw.js?v=102pro').catch(() => {});
       });
     }
   </script>
@@ -300,7 +300,7 @@
         document.querySelectorAll('.themeBtn').forEach(function(btn){
           btn.addEventListener('click', function(){
             document.body.setAttribute('data-theme', btn.getAttribute('data-theme') || 'sand');
-            try{ localStorage.setItem('saranTheme', btn.getAttribute('data-theme') || 'sand'); }catch(e){}
+            try{ localStorage.setItem('saranTheme', btn.getAttribute('data-theme') || 'sand'); localStorage.setItem('saran_theme', btn.getAttribute('data-theme') || 'sand'); }catch(e){}
           });
         });
         var saved=null; try{ saved=localStorage.getItem('saranTheme'); }catch(e){}
