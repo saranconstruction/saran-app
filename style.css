@@ -691,3 +691,25 @@ body[data-theme="sand"]{--bg:#f3eadb;--bg2:#ece0cf;--panel:#fffaf1;--panel2:#f6e
   .floatingReturnAdminBtn{top:10px;right:10px;padding:11px 14px!important;font-size:13px!important;}
   .settingsPanel{max-height:80vh;overflow:auto;}
 }
+
+
+/* V10.6.3 - bouton de secours Retour admin */
+#floatingReturnAdminBtn{
+  position:fixed;
+  top:14px;
+  right:14px;
+  z-index:99999;
+  padding:14px 18px!important;
+  border-radius:999px!important;
+  background:linear-gradient(180deg,#164b2b,#0b2d18)!important;
+  color:#fff!important;
+  border:2px solid rgba(255,255,255,.55)!important;
+  box-shadow:0 12px 28px rgba(0,0,0,.28)!important;
+  font-weight:900!important;
+  text-transform:none!important;
+}
+#viewModeGroup.forceVisible{display:block!important;}
+#viewAsAdminBtn{background:linear-gradient(180deg,#164b2b,#0b2d18)!important;color:#fff!important;border-color:#d8c18a!important;}
+@media(max-width:720px){
+  #floatingReturnAdminBtn{top:10px;right:10px;padding:12px 14px!important;font-size:14px!important;}
+}

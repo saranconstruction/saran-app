@@ -1391,3 +1391,96 @@ startApp();
   window.addEventListener('load', bind);
   window.saranApplyTheme = saveTheme;
 })();
+
+
+/* V10.6.3 - FIX FINAL: Retour admin visible même quand la vue employé cache les éléments adminOnly */
+(function(){
+  function el(id){ return document.getElementById(id); }
+  function profileIsRealAdmin(){
+    try { return !!(currentProfile && currentProfile.role === 'admin'); } catch(e) { return false; }
+  }
+  function isEmployeeView(){
+    try { return localStorage.getItem('saran_view_mode') === 'employee'; } catch(e) { return false; }
+  }
+  function leaveAdminPreview(){
+    try { localStorage.removeItem('saran_view_mode'); } catch(e) {}
+    const menu = el('accountMenu');
+    if (menu) menu.classList.add('hidden');
+    if (typeof renderAll === 'function') renderAll();
+    syncAdminReturnUI();
+  }
+  function enterEmployeePreview(){
+    if (!profileIsRealAdmin()) return;
+    try { localStorage.setItem('saran_view_mode','employee'); } catch(e) {}
+    const menu = el('accountMenu');
+    if (menu) menu.classList.add('hidden');
+    if (typeof renderAll === 'function') renderAll();
+    syncAdminReturnUI();
+  }
+  function ensureFloatingButton(){
+    let b = el('floatingReturnAdminBtn');
+    if (!b) {
+      b = document.createElement('button');
+      b.id = 'floatingReturnAdminBtn';
+      b.type = 'button';
+      b.textContent = '👑 Retour admin';
+      b.setAttribute('aria-label','Retour admin');
+      document.body.appendChild(b);
+    }
+    b.onclick = function(e){ e.preventDefault(); e.stopPropagation(); leaveAdminPreview(); };
+    return b;
+  }
+  function syncAdminReturnUI(){
+    const realAdmin = profileIsRealAdmin();
+    const preview = isEmployeeView();
+    const group = el('viewModeGroup');
+    const asEmployee = el('viewAsEmployeeBtn');
+    const asAdmin = el('viewAsAdminBtn');
+
+    // IMPORTANT: ce groupe ne peut pas rester caché par .adminOnly quand le vrai compte est admin.
+    if (group) {
+      group.style.display = realAdmin ? '' : 'none';
+      group.classList.toggle('forceVisible', realAdmin);
+    }
+
+    if (asEmployee) {
+      asEmployee.textContent = 'Voir comme Karl';
+      asEmployee.style.display = realAdmin && !preview ? '' : 'none';
+      asEmployee.onclick = function(e){ e.preventDefault(); e.stopPropagation(); enterEmployeePreview(); };
+    }
+    if (asAdmin) {
+      asAdmin.textContent = '👑 Retour admin';
+      asAdmin.style.display = realAdmin && preview ? '' : 'none';
+      asAdmin.onclick = function(e){ e.preventDefault(); e.stopPropagation(); leaveAdminPreview(); };
+    }
+
+    const floating = ensureFloatingButton();
+    floating.style.display = realAdmin && preview ? 'block' : 'none';
+
+    const connected = el('connectedUser');
+    if (connected && realAdmin && preview) connected.textContent = 'Vue employé';
+    const role = el('roleLabel');
+    if (role && realAdmin && preview) role.textContent = 'Vue employé';
+  }
+
+  document.addEventListener('click', function(e){
+    const ret = e.target.closest && e.target.closest('#viewAsAdminBtn,#floatingReturnAdminBtn');
+    if (ret) { e.preventDefault(); e.stopPropagation(); leaveAdminPreview(); return; }
+    const emp = e.target.closest && e.target.closest('#viewAsEmployeeBtn');
+    if (emp) { e.preventDefault(); e.stopPropagation(); enterEmployeePreview(); return; }
+  }, true);
+
+  const oldRenderAll = (typeof renderAll === 'function') ? renderAll : null;
+  if (oldRenderAll && !window.__saranV1063RenderPatched) {
+    window.__saranV1063RenderPatched = true;
+    renderAll = function(){
+      const result = oldRenderAll.apply(this, arguments);
+      setTimeout(syncAdminReturnUI, 0);
+      return result;
+    };
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', syncAdminReturnUI);
+  else syncAdminReturnUI();
+  window.addEventListener('load', syncAdminReturnUI);
+  setInterval(syncAdminReturnUI, 1200);
+})();
