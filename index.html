@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Saran Construction App V10 Pro</title>
+  <title>Saran Construction App V10.1 Pro</title>
 
   <meta name="theme-color" content="#0b0b0b" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -241,18 +241,6 @@
     </section>
   </main>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="script.js?v=10pro"></script>
-
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(() => {});
-      });
-    }
-  </script>
-
-
   <div id="accountMenu" class="accountMenu settingsPanel hidden">
     <div class="settingsHead"><strong>Réglages</strong><button id="closeSettings" type="button">×</button></div>
     <div class="settingsGroup">
@@ -276,10 +264,53 @@
     <div class="settingsGroup">
       <small>Application</small>
       <button id="clearAppCache" type="button">Vider cache / rafraîchir</button>
-      <p class="hint">Saran App V10 Pro</p>
+      <p class="hint">Saran App V10.1 Pro</p>
     </div>
   </div>
   <button id="accountGearBtn" class="accountGearBtn" type="button" aria-label="Réglages">⚙️</button>
+
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="script.js?v=101pro"></script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js?v=101pro').catch(() => {});
+      });
+    }
+  </script>
+
+
+
+  <script>
+    // V10.1 failsafe: the settings gear must work even if the main script loads before the panel.
+    (function(){
+      function bindSettingsGear(){
+        var gear=document.getElementById('accountGearBtn');
+        var menu=document.getElementById('accountMenu');
+        if(!gear || !menu) return;
+        gear.onclick=function(e){
+          e.preventDefault();
+          e.stopPropagation();
+          menu.classList.toggle('hidden');
+        };
+        var close=document.getElementById('closeSettings');
+        if(close) close.onclick=function(e){ e.preventDefault(); menu.classList.add('hidden'); };
+        document.querySelectorAll('.themeBtn').forEach(function(btn){
+          btn.addEventListener('click', function(){
+            document.body.setAttribute('data-theme', btn.getAttribute('data-theme') || 'sand');
+            try{ localStorage.setItem('saranTheme', btn.getAttribute('data-theme') || 'sand'); }catch(e){}
+          });
+        });
+        var saved=null; try{ saved=localStorage.getItem('saranTheme'); }catch(e){}
+        if(saved) document.body.setAttribute('data-theme', saved);
+      }
+      if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', bindSettingsGear);
+      else bindSettingsGear();
+      window.addEventListener('load', bindSettingsGear);
+    })();
+  </script>
 
 </body>
 </html>
