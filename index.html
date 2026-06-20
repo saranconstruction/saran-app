@@ -251,7 +251,7 @@
     <div class="settingsGroup adminOnly" id="viewModeGroup">
       <small>Test admin</small>
       <button id="viewAsEmployeeBtn" type="button">Voir comme employé</button>
-      <button id="viewAsAdminBtn" type="button">Revenir admin</button>
+      <button id="viewAsAdminBtn" type="button">👑 Retour admin</button>
     </div>
     <div class="settingsGroup">
       <small>Apparence</small>
@@ -264,19 +264,19 @@
     <div class="settingsGroup">
       <small>Application</small>
       <button id="clearAppCache" type="button">Vider cache / rafraîchir</button>
-      <p class="hint">Saran App V10.5 Pro</p>
+      <p class="hint">Saran App V10.6.2 Pro</p>
     </div>
   </div>
   <button id="accountGearBtn" class="accountGearBtn" type="button" aria-label="Réglages">⚙️</button>
 
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="script.js?v=105pro"></script>
+  <script src="script.js?v=1062pro"></script>
 
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js?v=105pro').catch(() => {});
+        navigator.serviceWorker.register('/sw.js?v=1062pro').catch(() => {});
       });
     }
   </script>

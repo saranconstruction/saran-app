@@ -1,3 +1,4 @@
-# saran-app
+Saran App V10.6.2
 
-V7.2 - Punch admin edit + retour interface propre avec engrenage en bas à droite.
+Inclus: multi-photos de chantier + retour admin visible/fonctionnel sur mobile et desktop.
+Le SQL V10.5 doit avoir été exécuté une seule fois dans Supabase.
