@@ -926,94 +926,8 @@ function renderMyTasks() {
 
 function renderToday() {
   const iso = todayISO();
-  const evs = state.events
-    .filter(e => e.date === iso)
-    .sort((a,b) => String(a.time || '').localeCompare(String(b.time || '')));
-  const tasks = state.tasks
-    .filter(t => (t.date === iso || t.task_date === iso))
-    .slice(0, 5);
-  const todayPunches = state.punches.filter(p => (p.start || '').slice(0,10) === iso);
-  const todayMinutes = todayPunches.reduce((sum,p) => sum + (Number(p.paid_minutes) || paidMinutes(p.start, p.end, p.lunch_minutes)), 0);
-  const weekStart = startOfWeek(new Date());
-  const weekEnd = addDays(weekStart, 7);
-  const weekMinutes = state.punches
-    .filter(p => new Date(p.start) >= weekStart && new Date(p.start) < weekEnd)
-    .reduce((sum,p) => sum + (Number(p.paid_minutes) || paidMinutes(p.start, p.end, p.lunch_minutes)), 0);
-  const firstEvent = evs[0];
-  const currentJob = firstEvent ? jobById(firstEvent.jobId) : null;
-  const nextTask = tasks[0];
-  const active = state.activePunch;
-  const activeJob = active ? jobById(active.jobId) : null;
-  const recentExpenses = [...state.expenses].sort((a,b) => String(b.date).localeCompare(String(a.date))).slice(0,3);
-  const upcoming = state.events
-    .filter(e => e.date >= iso)
-    .sort((a,b) => (a.date + ' ' + (a.time || '')).localeCompare(b.date + ' ' + (b.time || '')))
-    .slice(0,3);
-
-  $('todayList').innerHTML = `
-    <div class="dashGrid">
-      <div class="metricCard">
-        <div class="metricIcon">⏱</div>
-        <small>TEMPS AUJOURD’HUI</small>
-        <strong>${h(todayMinutes)}</strong>
-        <p>${active ? 'Punch actif depuis ' + new Date(active.start).toLocaleTimeString('fr-CA',{hour:'2-digit',minute:'2-digit'}) : 'Aucun punch actif'}</p>
-      </div>
-      <div class="metricCard">
-        <div class="metricIcon">📊</div>
-        <small>HEURES CETTE SEMAINE</small>
-        <strong>${h(weekMinutes)}</strong>
-        <p>Sur 40h prévues</p>
-        <div class="progress"><span style="width:${Math.min(100, (weekMinutes/2400)*100)}%"></span></div>
-      </div>
-      <div class="metricCard">
-        <div class="metricIcon">💼</div>
-        <small>CHANTIER ACTUEL</small>
-        <strong class="metricTitle">${esc((activeJob && activeJob.name) || (currentJob && currentJob.name) || 'Aucun chantier')}</strong>
-        <p>${esc((currentJob && currentJob.address) || 'Clique pour voir les chantiers')}</p>
-        <button type="button" onclick="goTab('jobs')">Changer de chantier</button>
-      </div>
-      <div class="metricCard">
-        <div class="metricIcon">☑</div>
-        <small>PROCHAINE TÂCHE</small>
-        <strong class="metricTitle">${esc((nextTask && nextTask.title) || 'Aucune tâche')}</strong>
-        <p>Aujourd’hui</p>
-        <button type="button" onclick="goTab('mytasks')">Voir les tâches</button>
-      </div>
-    </div>
-
-    <div class="dashboardLayout">
-      <div class="dashPanel punchPreview">
-        <div class="panelTitle"><span>◷</span><strong>Punch</strong></div>
-        <div class="punchPreviewMain">
-          <div><small>Statut actuel</small><strong class="${active ? 'statusGood':'statusOff'}">${active ? 'PUNCH IN' : 'Aucun punch actif'}</strong><p>${activeJob ? esc(activeJob.name) : ''}</p></div>
-          <div><strong class="bigTimer">${active ? h(minutesBetween(active.start, new Date().toISOString())) : '00:00'}</strong><p>Temps travaillé aujourd’hui</p></div>
-          <button type="button" onclick="goTab('punch')">${active ? 'Punch out' : 'Punch in'}</button>
-        </div>
-      </div>
-
-      <div class="dashPanel tasksPreview">
-        <div class="panelTitle"><span>☑</span><strong>Tâches du jour</strong><button type="button" onclick="goTab('mytasks')">Voir toutes</button></div>
-        <div class="cleanList">
-          ${tasks.map(t => `<div><span class="fakeCheck"></span><strong>${esc(t.title)}</strong><small>${esc((jobById(t.jobId)||{}).name || '')}</small></div>`).join('') || '<p class="empty">Aucune tâche aujourd’hui.</p>'}
-        </div>
-        <button class="wideAdd" type="button" onclick="goTab('mytasks')">+ Nouvelle tâche</button>
-      </div>
-
-      <div class="dashPanel expensesPreview">
-        <div class="panelTitle"><span>🧾</span><strong>Dépenses récentes</strong><button type="button" onclick="goTab('expenses')">Voir toutes</button></div>
-        <div class="miniTable">
-          ${recentExpenses.map(e => `<div><span>${esc(e.date || '')}</span><strong>${esc(e.supplier || e.desc || 'Dépense')}</strong><span>${Number(e.amount||0).toFixed(2)} $</span></div>`).join('') || '<p class="empty">Aucune dépense.</p>'}
-        </div>
-      </div>
-
-      <div class="dashPanel eventsPreview">
-        <div class="panelTitle"><span>📅</span><strong>Prochains événements</strong><button type="button" onclick="goTab('calendar')">Voir calendrier</button></div>
-        <div class="eventList">
-          ${upcoming.map(e => `<div><b>${String(e.date||'').slice(8,10) || '--'}<small>${String(e.date||'').slice(5,7) || ''}</small></b><span><strong>${esc(e.title || (jobById(e.jobId)||{}).name || 'Événement')}</strong><small>${esc((jobById(e.jobId)||{}).name || '')}</small></span><em>${esc(e.time || '')}</em></div>`).join('') || '<p class="empty">Rien à venir.</p>'}
-        </div>
-      </div>
-    </div>
-  `;
+  const evs = state.events.filter(e => e.date === iso);
+  $('todayList').innerHTML = evs.map(e => eventHtml(e)).join('') || '<div class="card">Rien au calendrier aujourd’hui.</div>';
 }
 
 function renderAll() {
@@ -1070,28 +984,8 @@ function setupHandlers() {
   if ($('cancelPasswordBtn')) $('cancelPasswordBtn').onclick = async () => { const { data:{session} } = await supabaseClient.auth.getSession(); if (session) await openSession(session); else showLogin(); };
 }
 
-
-function initAppearancePanel() {
-  const root = document.documentElement;
-  const saved = localStorage.getItem('saranTheme') || 'sand';
-  const setTheme = theme => {
-    root.setAttribute('data-theme', theme);
-    localStorage.setItem('saranTheme', theme);
-    document.querySelectorAll('.themeChoice').forEach(btn => btn.classList.toggle('active', btn.dataset.theme === theme));
-  };
-  const open = () => { if ($('appearancePanel')) $('appearancePanel').classList.remove('hidden'); if ($('appearanceOverlay')) $('appearanceOverlay').classList.remove('hidden'); };
-  const close = () => { if ($('appearancePanel')) $('appearancePanel').classList.add('hidden'); if ($('appearanceOverlay')) $('appearanceOverlay').classList.add('hidden'); };
-  setTheme(saved);
-  if ($('menuAppearance')) $('menuAppearance').onclick = open;
-  if ($('closeAppearance')) $('closeAppearance').onclick = close;
-  if ($('appearanceOverlay')) $('appearanceOverlay').onclick = close;
-  if ($('resetTheme')) $('resetTheme').onclick = () => setTheme('sand');
-  document.querySelectorAll('.themeChoice').forEach(btn => btn.onclick = () => setTheme(btn.dataset.theme || 'sand'));
-}
-
 async function startApp() {
   setupHandlers();
-  initAppearancePanel();
   try {
     await initSupabase();
     supabaseClient.auth.onAuthStateChange((event, session) => {
@@ -1107,5 +1001,155 @@ async function startApp() {
     showLogin('Erreur Supabase: ' + e.message);
   }
 }
+
+
+/* =========================
+   V10 PRO - UI, réglages, thèmes, vue employé, photos/notes chantiers
+   ========================= */
+const realIsAdminV10 = isAdmin;
+isAdmin = function(){
+  return realIsAdminV10() && localStorage.getItem('saran_view_mode') !== 'employee';
+};
+function isTrueAdmin(){ return realIsAdminV10(); }
+function firstName(){
+  const n = (currentProfile && (currentProfile.full_name || currentProfile.email)) || (currentUser && currentUser.email) || 'Jesse';
+  return String(n).split(' ')[0].split('@')[0] || 'Jesse';
+}
+function applyTheme(theme){
+  const t = theme || localStorage.getItem('saran_theme') || 'sand';
+  document.body.setAttribute('data-theme', t);
+  localStorage.setItem('saran_theme', t);
+}
+function setViewMode(mode){
+  if (!isTrueAdmin()) return;
+  localStorage.setItem('saran_view_mode', mode);
+  const menu = $('accountMenu'); if (menu) menu.classList.add('hidden');
+  renderAll();
+}
+const oldApplyRoleV10 = applyRole;
+applyRole = function(){
+  oldApplyRoleV10();
+  if ($('dashFirstName')) $('dashFirstName').textContent = firstName();
+  const simulated = localStorage.getItem('saran_view_mode') === 'employee';
+  if ($('connectedUser')) $('connectedUser').textContent = simulated ? 'Vue employé' : firstName();
+  if ($('viewAsEmployeeBtn')) $('viewAsEmployeeBtn').style.display = isTrueAdmin() && !simulated ? '' : 'none';
+  if ($('viewAsAdminBtn')) $('viewAsAdminBtn').style.display = isTrueAdmin() && simulated ? '' : 'none';
+};
+function currentWeekPaidMinutes(){
+  const start = startOfWeek(new Date());
+  const end = addDays(start, 7);
+  return state.punches.filter(p => new Date(p.start) >= start && new Date(p.start) < end)
+    .reduce((sum,p)=>sum+(p.paid_minutes || paidMinutes(p.start,p.end)),0);
+}
+function todaysPaidMinutes(){
+  const iso = todayISO();
+  let mins = state.punches.filter(p => dateOnly(p.start) === iso).reduce((sum,p)=>sum+(p.paid_minutes || paidMinutes(p.start,p.end)),0);
+  if (state.activePunch && dateOnly(state.activePunch.start) === iso) mins += minutesBetween(state.activePunch.start, new Date().toISOString());
+  return mins;
+}
+function getTodayTasks(){
+  const iso = todayISO();
+  return state.tasks.filter(t => t.date === iso).slice(0,4);
+}
+renderToday = function(){
+  const iso = todayISO();
+  const evs = state.events.filter(e => e.date === iso).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+  const nextEvents = state.events.filter(e => e.date >= iso).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).slice(0,3);
+  const tasks = getTodayTasks();
+  const weekMins = currentWeekPaidMinutes();
+  const todayMins = todaysPaidMinutes();
+  if ($('dashFirstName')) $('dashFirstName').textContent = firstName();
+  if ($('dashTodayHours')) $('dashTodayHours').textContent = h(todayMins);
+  if ($('dashWeekHours')) $('dashWeekHours').textContent = h(weekMins);
+  if ($('dashWeekProgress')) $('dashWeekProgress').style.width = Math.min(100, (weekMins/(40*60))*100) + '%';
+  const activeJob = state.activePunch ? jobById(state.activePunch.jobId) : null;
+  if ($('dashCurrentJob')) $('dashCurrentJob').textContent = activeJob ? activeJob.name : (evs[0] ? evs[0].title : 'Aucun chantier');
+  if ($('dashCurrentJobSub')) $('dashCurrentJobSub').textContent = activeJob ? (activeJob.address || 'Punch actif') : (evs[0] ? ((jobById(evs[0].jobId)||{}).address || evs[0].time || '') : 'Clique pour voir les chantiers');
+  if ($('dashNextTask')) $('dashNextTask').textContent = tasks[0] ? tasks[0].title : 'Aucune tâche';
+  if ($('dashPunchStatus')) $('dashPunchStatus').textContent = state.activePunch ? 'En cours' : 'Aucun punch actif';
+  if ($('dashPunchBadge')) $('dashPunchBadge').textContent = state.activePunch ? 'Punch actif' : 'Aucun punch actif';
+  if ($('dashLiveClock')) $('dashLiveClock').textContent = state.activePunch ? h(minutesBetween(state.activePunch.start, new Date().toISOString())).replace(' h','') : '00:00';
+  if ($('dashPunchBtn')) { $('dashPunchBtn').textContent = state.activePunch ? 'Punch Out' : 'Punch In'; $('dashPunchBtn').onclick = () => state.activePunch ? punchOut() : goTab('punch'); }
+  if ($('dashPunchEntries')) {
+    const rows = state.punches.filter(p => dateOnly(p.start) === iso).slice(-3).reverse().map(p => {
+      const j = jobById(p.jobId) || {};
+      return `<div class="miniLine"><small>${fmtTime(p.start)}–${fmtTime(p.end)}</small><strong>${esc(j.name || 'Chantier')}</strong><span>${h(p.paid_minutes || paidMinutes(p.start,p.end))}</span></div>`;
+    }).join('');
+    $('dashPunchEntries').innerHTML = rows || '<div class="emptyState">Aucune entrée de temps aujourd’hui.</div>';
+  }
+  if ($('dashTasksToday')) {
+    $('dashTasksToday').innerHTML = tasks.length ? tasks.map(t => `<div class="miniLine"><small>${t.done?'☑':'☐'}</small><strong>${esc(t.title)}</strong><span>${esc((jobById(t.jobId)||{}).name || '')}</span></div>`).join('') : '<div class="emptyState">Aucune tâche aujourd’hui.</div>';
+  }
+  if ($('dashRecentExpenses')) {
+    const list = (isAdmin()?state.expenses:state.expenses.filter(e=>e.userId===currentUser.id)).slice(-3).reverse();
+    $('dashRecentExpenses').innerHTML = list.length ? list.map(e => `<div class="miniLine"><small>${esc(e.date||'')}</small><strong>${esc(e.supplier)}</strong><span>${Number(e.amount||0).toFixed(2)} $</span></div>`).join('') : '<div class="emptyState">Aucune dépense récente.</div>';
+  }
+  if ($('todayList')) {
+    $('todayList').innerHTML = nextEvents.length ? nextEvents.map(e => {
+      const d = new Date(e.date+'T00:00:00');
+      return `<div class="miniLine"><small>${d.toLocaleDateString('fr-CA',{day:'2-digit',month:'2-digit'})}</small><strong>${esc(e.title)}</strong><span>${esc(e.time||'')}</span></div>`;
+    }).join('') : '<div class="emptyState">Rien au calendrier.</div>';
+  }
+};
+
+function jobExtras(){
+  try { return JSON.parse(localStorage.getItem('saran_job_extras') || '{}'); } catch(e){ return {}; }
+}
+function saveJobExtras(data){ localStorage.setItem('saran_job_extras', JSON.stringify(data)); }
+function getJobExtra(id){ const all = jobExtras(); return all[id] || { photos: [], notes: [] }; }
+function setJobExtra(id, data){ const all = jobExtras(); all[id] = data; saveJobExtras(all); }
+window.addJobPhoto = async function(jobId, inputId){
+  const input = $(inputId); const file = input && input.files && input.files[0];
+  if (!file) return;
+  const dataUrl = await compressImageFile(file, 1600, .76);
+  const ex = getJobExtra(jobId);
+  ex.photos.unshift({ id: uid(), date: new Date().toISOString(), data: dataUrl });
+  setJobExtra(jobId, ex);
+  input.value = '';
+  renderJobs();
+};
+window.saveJobJournalNote = function(jobId){
+  const el = $('jobNoteInput_'+jobId); if (!el) return;
+  const txt = el.value.trim(); if (!txt) return alert('Écris une note avant de sauvegarder.');
+  const ex = getJobExtra(jobId);
+  ex.notes.unshift({ id: uid(), date: new Date().toISOString(), text: txt, author: firstName() });
+  setJobExtra(jobId, ex);
+  renderJobs();
+};
+window.deleteJobPhoto = function(jobId, photoId){
+  const ex = getJobExtra(jobId); ex.photos = ex.photos.filter(p=>p.id!==photoId); setJobExtra(jobId, ex); renderJobs();
+};
+window.deleteJobNote = function(jobId, noteId){
+  const ex = getJobExtra(jobId); ex.notes = ex.notes.filter(n=>n.id!==noteId); setJobExtra(jobId, ex); renderJobs();
+};
+renderJobs = function(){
+  const list = $('jobList');
+  if (!list) return;
+  list.innerHTML = state.jobs.map(j => {
+    const ex = getJobExtra(j.id);
+    const photos = (ex.photos || []).slice(0,8).map(p => `<div><img src="${p.data}" class="jobMediaThumb" title="${fmtDT(p.date)}"><button class="secondary" style="width:100%;margin-top:5px;padding:6px!important" onclick="deleteJobPhoto('${j.id}','${p.id}')">Retirer</button></div>`).join('');
+    const notes = (ex.notes || []).slice(0,5).map(n => `<div class="jobNoteItem"><small>${fmtDT(n.date)} · ${esc(n.author||'')}</small><div>${esc(n.text).replace(/\n/g,'<br>')}</div>${isAdmin()?`<button class="secondary" onclick="deleteJobNote('${j.id}','${n.id}')">Supprimer note</button>`:''}</div>`).join('');
+    return `<div class="jobRow jobCardPro"><div class="rowTop"><strong><span class="colorDot" style="background:${j.color}"></span> ${esc(j.name)}</strong><span>${esc(j.address || '')}</span></div><p>${esc(j.notes || '')}</p>
+      <div class="jobActions">${isAdmin() ? `<button onclick="editJob('${j.id}')">Modifier</button> <button class="danger" onclick="deleteJob('${j.id}')">Supprimer chantier complet</button>` : ''}</div>
+      <div class="jobNoteBox"><strong>📸 Photos du chantier</strong><div class="photoInputs"><label class="fileBtn">Prendre photo<input class="hiddenFile" id="jobCam_${j.id}" type="file" accept="image/*" capture="environment" onchange="addJobPhoto('${j.id}','jobCam_${j.id}')"></label><label class="fileBtn">Choisir galerie<input class="hiddenFile" id="jobGal_${j.id}" type="file" accept="image/*" onchange="addJobPhoto('${j.id}','jobGal_${j.id}')"></label></div><div class="jobMediaGrid">${photos || '<span class="hint">Aucune photo pour ce chantier.</span>'}</div></div>
+      <div class="jobNoteBox"><strong>📝 Journal de chantier</strong><textarea id="jobNoteInput_${j.id}" rows="3" placeholder="Ajouter une note de chantier..."></textarea><button onclick="saveJobJournalNote('${j.id}')">Ajouter note</button>${notes || '<p class="hint">Aucune note pour ce chantier.</p>'}</div>
+    </div>`;
+  }).join('') || '<div class="card">Aucun chantier.</div>';
+};
+
+function setupV10Handlers(){
+  applyTheme();
+  if ($('accountGearBtn')) $('accountGearBtn').onclick = (ev) => { ev.stopPropagation(); const menu = $('accountMenu'); if (menu) menu.classList.toggle('hidden'); };
+  if ($('closeSettings')) $('closeSettings').onclick = () => $('accountMenu').classList.add('hidden');
+  if ($('menuChangePassword')) $('menuChangePassword').onclick = () => { const menu=$('accountMenu'); if(menu) menu.classList.add('hidden'); showPasswordScreen(); };
+  if ($('menuLogout')) $('menuLogout').onclick = logout;
+  if ($('viewAsEmployeeBtn')) $('viewAsEmployeeBtn').onclick = () => setViewMode('employee');
+  if ($('viewAsAdminBtn')) $('viewAsAdminBtn').onclick = () => setViewMode('admin');
+  document.querySelectorAll('.themeBtn').forEach(b => b.onclick = () => applyTheme(b.dataset.theme));
+  if ($('clearAppCache')) $('clearAppCache').onclick = async () => { try { if ('caches' in window) { const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); } } catch(e){} location.reload(true); };
+  document.addEventListener('click', (e)=>{ const menu=$('accountMenu'); const gear=$('accountGearBtn'); if(menu && gear && !menu.classList.contains('hidden') && !menu.contains(e.target) && !gear.contains(e.target)) menu.classList.add('hidden'); });
+}
+const oldSetupHandlersV10 = setupHandlers;
+setupHandlers = function(){ oldSetupHandlersV10(); setupV10Handlers(); };
 
 startApp();

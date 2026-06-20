@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Saran Construction App V9 UI</title>
+  <title>Saran Construction App V10 Pro</title>
 
   <meta name="theme-color" content="#0b0b0b" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="Saran App" />
   <link rel="apple-touch-icon" href="logo-icon.png" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=90" />
+  <link rel="stylesheet" href="style.css?v=10pro" />
 </head>
 <body>
   <header class="topbar dashboardTop fullLogoWatermark">
@@ -53,36 +53,54 @@
     <section class="userMiniLine"><div id="connectedUser" class="connectedUser">Chargement...</div></section>
 
     <nav class="tabs">
-      <button data-tab="today" class="active">Aujourd'hui</button>
-      <button data-tab="calendar">Calendrier</button>
-      <button data-tab="mytasks">Tâches</button>
-      <button data-tab="jobs">Chantiers</button>
-      <button data-tab="punch">Punch</button>
-      <button data-tab="expenses">Dépenses</button>
-      <button data-tab="payroll" class="adminOnly">Paye</button>
-      <button data-tab="backup" class="adminOnly">Backup</button>
+      <button data-tab="today" class="active"><span class="navIcon">⌂</span><span>Aujourd'hui</span></button>
+      <button data-tab="calendar"><span class="navIcon">□</span><span>Calendrier</span></button>
+      <button data-tab="mytasks"><span class="navIcon">✓</span><span>Tâches</span></button>
+      <button data-tab="jobs"><span class="navIcon">▣</span><span>Chantiers</span></button>
+      <button data-tab="punch"><span class="navIcon">◴</span><span>Punch</span></button>
+      <button data-tab="expenses"><span class="navIcon">▤</span><span>Dépenses</span></button>
+      <button data-tab="payroll" class="adminOnly"><span class="navIcon">$</span><span>Paye</span></button>
+      <button data-tab="backup" class="adminOnly"><span class="navIcon">↥</span><span>Backup</span></button>
     </nav>
 
-    <section id="today" class="tab active dashboardHome">
-      <div class="homeHero card">
-        <h2>Tableau de bord</h2>
-        <p>Gestion Saran Construction : calendrier, chantiers, punch, dépenses et paie.</p>
+    <section id="today" class="tab active dashboardHome proDashboard">
+      <div class="dashHeader">
+        <div>
+          <h2>Bonjour, <span id="dashFirstName">Jesse</span> 👋</h2>
+          <p>Voici ce qui se passe aujourd’hui.</p>
+        </div>
+        <button class="ghostBtn" onclick="goTab('calendar')">Voir calendrier</button>
       </div>
 
-      <div class="homeGrid">
-        <button class="homeBtn" onclick="document.querySelector('[data-tab=calendar]').click()"><span>📅</span><strong>Calendrier</strong><small>Voir les jobs à venir</small></button>
-        <button class="homeBtn" onclick="document.querySelector('[data-tab=jobs]').click()"><span>🛠️</span><strong>Chantiers</strong><small>Clients, adresses, notes</small></button>
-        <button class="homeBtn" onclick="document.querySelector('[data-tab=punch]').click()"><span>👊</span><strong>Punch</strong><small>Début / fin journée</small></button>
-        <button class="homeBtn" onclick="document.querySelector('[data-tab=expenses]').click()"><span>💵</span><strong>Dépenses</strong><small>Factures et reçus</small></button>
-        <button class="homeBtn adminOnly" onclick="document.querySelector('[data-tab=payroll]').click()"><span>👷</span><strong>Employés</strong><small>Heures et paie</small></button>
-        <button class="homeBtn adminOnly" onclick="document.querySelector('[data-tab=backup]').click()"><span>📊</span><strong>Backup</strong><small>Exporter / importer</small></button>
+      <div class="kpiGrid">
+        <div class="kpiCard"><div class="kpiIcon">◴</div><small>Temps aujourd’hui</small><strong id="dashTodayHours">0.00 h</strong><span id="dashPunchStatus">Aucun punch actif</span></div>
+        <div class="kpiCard"><div class="kpiIcon">▥</div><small>Heures cette semaine</small><strong id="dashWeekHours">0.00 h</strong><span>Sur 40h prévues</span><div class="progress"><i id="dashWeekProgress"></i></div></div>
+        <div class="kpiCard"><div class="kpiIcon">▣</div><small>Chantier actuel</small><strong id="dashCurrentJob">Aucun chantier</strong><span id="dashCurrentJobSub">Clique pour voir les chantiers</span><button onclick="goTab('jobs')">Changer de chantier</button></div>
+        <div class="kpiCard"><div class="kpiIcon">☑</div><small>Prochaine tâche</small><strong id="dashNextTask">Aucune tâche</strong><span>Aujourd’hui</span><button onclick="goTab('mytasks')">Voir les tâches</button></div>
       </div>
 
-      <h2 class="todayTitle">Aujourd'hui</h2>
-      <div id="todayList"></div>
+      <div class="dashGrid">
+        <div class="dashPanel punchPanel">
+          <div class="panelHead"><h3>◴ Punch</h3></div>
+          <div class="bigPunchRow"><div><small>Statut actuel</small><b id="dashPunchBadge">Aucun punch actif</b></div><div class="bigClock" id="dashLiveClock">00:00</div><button id="dashPunchBtn" type="button">Punch In</button></div>
+          <div id="dashPunchEntries" class="miniTable"></div>
+        </div>
+        <div class="dashPanel">
+          <div class="panelHead"><h3>☑ Tâches du jour</h3><button onclick="goTab('mytasks')">Voir toutes</button></div>
+          <div id="dashTasksToday"></div>
+          <button class="fullAction" onclick="goTab('mytasks')">+ Nouvelle tâche</button>
+        </div>
+        <div class="dashPanel widePanel">
+          <div class="panelHead"><h3>▤ Dépenses récentes</h3><button onclick="goTab('expenses')">Voir toutes</button></div>
+          <div id="dashRecentExpenses" class="miniTable"></div>
+        </div>
+        <div class="dashPanel">
+          <div class="panelHead"><h3>□ Prochains événements</h3><button onclick="goTab('calendar')">Voir calendrier</button></div>
+          <div id="todayList"></div>
+        </div>
+      </div>
     </section>
 
-    
     <section id="mytasks" class="tab">
       <h2 id="myTasksTitle">Tâches</h2>
       <div class="card taskComposer">
@@ -224,7 +242,7 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="script.js?v=90"></script>
+  <script src="script.js?v=10pro"></script>
 
   <script>
     if ('serviceWorker' in navigator) {
@@ -235,36 +253,33 @@
   </script>
 
 
-  <div id="accountMenu" class="accountMenu hidden">
-    <button id="menuAppearance" type="button">Apparence</button>
-    <button id="menuChangePassword" type="button">Changer le mot de passe</button>
-    <button id="menuLogout" type="button">Déconnexion</button>
+  <div id="accountMenu" class="accountMenu settingsPanel hidden">
+    <div class="settingsHead"><strong>Réglages</strong><button id="closeSettings" type="button">×</button></div>
+    <div class="settingsGroup">
+      <small>Compte</small>
+      <button id="menuChangePassword" type="button">Changer le mot de passe</button>
+      <button id="menuLogout" type="button">Déconnexion</button>
+    </div>
+    <div class="settingsGroup adminOnly" id="viewModeGroup">
+      <small>Test admin</small>
+      <button id="viewAsEmployeeBtn" type="button">Voir comme employé</button>
+      <button id="viewAsAdminBtn" type="button">Revenir admin</button>
+    </div>
+    <div class="settingsGroup">
+      <small>Apparence</small>
+      <button class="themeBtn" data-theme="sand" type="button"><span class="swatch sand"></span>Sable</button>
+      <button class="themeBtn" data-theme="forest" type="button"><span class="swatch forest"></span>Forêt</button>
+      <button class="themeBtn" data-theme="slate" type="button"><span class="swatch slate"></span>Ardoise</button>
+      <button class="themeBtn" data-theme="bronze" type="button"><span class="swatch bronze"></span>Bronze</button>
+      <button class="themeBtn" data-theme="night" type="button"><span class="swatch night"></span>Noir</button>
+    </div>
+    <div class="settingsGroup">
+      <small>Application</small>
+      <button id="clearAppCache" type="button">Vider cache / rafraîchir</button>
+      <p class="hint">Saran App V10 Pro</p>
+    </div>
   </div>
-  <button id="accountGearBtn" class="accountGearBtn" type="button">⚙️</button>
-
-
-  <div id="appearanceOverlay" class="appearanceOverlay hidden"></div>
-  <aside id="appearancePanel" class="appearancePanel hidden" aria-label="Personnaliser l'apparence">
-    <div class="appearanceHeader">
-      <strong>Personnaliser l’apparence</strong>
-      <button id="closeAppearance" type="button" aria-label="Fermer">×</button>
-    </div>
-    <div class="appearanceBody">
-      <label>Choisir un thème</label>
-      <button class="themeChoice" data-theme="sand"><span class="themeSwatch sand"></span><span>Sable</span><strong>✓</strong></button>
-      <button class="themeChoice" data-theme="forest"><span class="themeSwatch forest"></span><span>Forêt</span><strong>✓</strong></button>
-      <button class="themeChoice" data-theme="slate"><span class="themeSwatch slate"></span><span>Ardoise</span><strong>✓</strong></button>
-      <button class="themeChoice" data-theme="night"><span class="themeSwatch night"></span><span>Bleu nuit</span><strong>✓</strong></button>
-      <button class="themeChoice" data-theme="bronze"><span class="themeSwatch bronze"></span><span>Bronze</span><strong>✓</strong></button>
-      <div class="themePreview">
-        <small>Aperçu</small>
-        <h3>Titre</h3>
-        <p>Texte d’exemple</p>
-        <button type="button">Bouton exemple</button>
-      </div>
-      <button id="resetTheme" type="button" class="secondary">Réinitialiser</button>
-    </div>
-  </aside>
+  <button id="accountGearBtn" class="accountGearBtn" type="button" aria-label="Réglages">⚙️</button>
 
 </body>
 </html>
