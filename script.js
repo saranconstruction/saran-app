@@ -48,6 +48,10 @@ let state = {
   tasks: [],
   punches: [],
   expenses: [],
+  jobPhotos: [],
+  jobNotes: [],
+  jobDocuments: [],
+  jobExtrasReady: false,
   profiles: [],
   activePunch: null,
   user: 'karl'
@@ -1004,7 +1008,7 @@ async function startApp() {
 
 
 /* =========================
-   V10 PRO - UI, réglages, thèmes, vue employé, photos/notes chantiers
+   V10.5 PRO - UI, réglages, vue employé, photos/notes/documents partagés
    ========================= */
 const realIsAdminV10 = isAdmin;
 isAdmin = function(){
@@ -1092,50 +1096,170 @@ renderToday = function(){
   }
 };
 
-function jobExtras(){
-  try { return JSON.parse(localStorage.getItem('saran_job_extras') || '{}'); } catch(e){ return {}; }
+
+function jobExtrasMissingMessage(){
+  return 'Photos/notes/documents partagés non configurés. Exécute le fichier v105-shared-job-files.sql dans Supabase.';
 }
-function saveJobExtras(data){ localStorage.setItem('saran_job_extras', JSON.stringify(data)); }
-function getJobExtra(id){ const all = jobExtras(); return all[id] || { photos: [], notes: [] }; }
-function setJobExtra(id, data){ const all = jobExtras(); all[id] = data; saveJobExtras(all); }
+function jobFilesReady(){
+  return state.jobExtrasReady !== false;
+}
+function jobPhotos(jobId){ return (state.jobPhotos || []).filter(x => x.jobId === jobId); }
+function jobNotes(jobId){ return (state.jobNotes || []).filter(x => x.jobId === jobId); }
+function jobDocuments(jobId){ return (state.jobDocuments || []).filter(x => x.jobId === jobId); }
+function safeFileName(name){
+  return String(name || 'fichier').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9._-]+/g,'-').replace(/-+/g,'-').slice(-90);
+}
+async function dataUrlToBlob(dataUrl){
+  const res = await fetch(dataUrl);
+  return await res.blob();
+}
+async function uploadToJobBucket(jobId, file, kind){
+  if (!supabaseClient) throw new Error('Supabase non prêt');
+  const bucket = 'job-files';
+  const ext = (file.name && file.name.includes('.')) ? file.name.split('.').pop().toLowerCase() : (kind === 'photo' ? 'jpg' : 'bin');
+  const baseName = safeFileName(file.name || (kind === 'photo' ? 'photo.jpg' : 'document'));
+  const path = `${jobId}/${kind}/${Date.now()}-${uid()}-${baseName}`;
+  let uploadFile = file;
+  if (kind === 'photo' && file.type && file.type.startsWith('image/')) {
+    const compressed = await compressImageFile(file, 1600, .76);
+    if (compressed) uploadFile = await dataUrlToBlob(compressed);
+  }
+  const { error: uploadError } = await supabaseClient.storage.from(bucket).upload(path, uploadFile, {
+    cacheControl: '3600',
+    upsert: false,
+    contentType: kind === 'photo' ? 'image/jpeg' : (file.type || 'application/octet-stream')
+  });
+  if (uploadError) throw uploadError;
+  const { data } = supabaseClient.storage.from(bucket).getPublicUrl(path);
+  return { path, url: data && data.publicUrl ? data.publicUrl : '' };
+}
 window.addJobPhoto = async function(jobId, inputId){
   const input = $(inputId); const file = input && input.files && input.files[0];
   if (!file) return;
-  const dataUrl = await compressImageFile(file, 1600, .76);
-  const ex = getJobExtra(jobId);
-  ex.photos.unshift({ id: uid(), date: new Date().toISOString(), data: dataUrl });
-  setJobExtra(jobId, ex);
-  input.value = '';
-  renderJobs();
+  try {
+    const saved = await uploadToJobBucket(jobId, file, 'photo');
+    const { error } = await supabaseClient.from('job_photos').insert({
+      job_id: jobId,
+      file_path: saved.path,
+      public_url: saved.url,
+      original_name: file.name || 'photo.jpg',
+      mime_type: file.type || 'image/jpeg',
+      created_by: currentUser.id
+    });
+    if (error) throw error;
+    input.value = '';
+    await loadAllFromSupabase();
+  } catch(e) {
+    console.error(e);
+    alert('Erreur photo chantier: ' + (e.message || e) + '\n\nSi le bucket/table n’existe pas encore, exécute v105-shared-job-files.sql dans Supabase.');
+  }
 };
-window.saveJobJournalNote = function(jobId){
+window.addJobDocument = async function(jobId, inputId){
+  const input = $(inputId); const file = input && input.files && input.files[0];
+  if (!file) return;
+  try {
+    const saved = await uploadToJobBucket(jobId, file, 'document');
+    const { error } = await supabaseClient.from('job_documents').insert({
+      job_id: jobId,
+      file_path: saved.path,
+      public_url: saved.url,
+      original_name: file.name || 'document',
+      mime_type: file.type || 'application/octet-stream',
+      created_by: currentUser.id
+    });
+    if (error) throw error;
+    input.value = '';
+    await loadAllFromSupabase();
+  } catch(e) {
+    console.error(e);
+    alert('Erreur document chantier: ' + (e.message || e) + '\n\nSi le bucket/table n’existe pas encore, exécute v105-shared-job-files.sql dans Supabase.');
+  }
+};
+window.saveJobJournalNote = async function(jobId){
   const el = $('jobNoteInput_'+jobId); if (!el) return;
   const txt = el.value.trim(); if (!txt) return alert('Écris une note avant de sauvegarder.');
-  const ex = getJobExtra(jobId);
-  ex.notes.unshift({ id: uid(), date: new Date().toISOString(), text: txt, author: firstName() });
-  setJobExtra(jobId, ex);
-  renderJobs();
+  try {
+    const { error } = await supabaseClient.from('job_notes').insert({
+      job_id: jobId,
+      note: txt,
+      created_by: currentUser.id,
+      author_name: firstName()
+    });
+    if (error) throw error;
+    el.value = '';
+    await loadAllFromSupabase();
+  } catch(e) {
+    console.error(e);
+    alert('Erreur note chantier: ' + (e.message || e) + '\n\nSi la table n’existe pas encore, exécute v105-shared-job-files.sql dans Supabase.');
+  }
 };
-window.deleteJobPhoto = function(jobId, photoId){
-  const ex = getJobExtra(jobId); ex.photos = ex.photos.filter(p=>p.id!==photoId); setJobExtra(jobId, ex); renderJobs();
+window.deleteJobPhoto = async function(jobId, photoId){
+  if (!isAdmin()) return alert('Accès admin requis.');
+  const p = (state.jobPhotos || []).find(x => x.id === photoId);
+  if (!p || !confirm('Retirer cette photo du chantier?')) return;
+  try { if (p.filePath) await supabaseClient.storage.from('job-files').remove([p.filePath]); } catch(e) {}
+  const { error } = await supabaseClient.from('job_photos').delete().eq('id', photoId);
+  if (error) return alert('Erreur suppression photo: ' + error.message);
+  await loadAllFromSupabase();
 };
-window.deleteJobNote = function(jobId, noteId){
-  const ex = getJobExtra(jobId); ex.notes = ex.notes.filter(n=>n.id!==noteId); setJobExtra(jobId, ex); renderJobs();
+window.deleteJobDocument = async function(jobId, docId){
+  if (!isAdmin()) return alert('Accès admin requis.');
+  const d = (state.jobDocuments || []).find(x => x.id === docId);
+  if (!d || !confirm('Retirer ce document du chantier?')) return;
+  try { if (d.filePath) await supabaseClient.storage.from('job-files').remove([d.filePath]); } catch(e) {}
+  const { error } = await supabaseClient.from('job_documents').delete().eq('id', docId);
+  if (error) return alert('Erreur suppression document: ' + error.message);
+  await loadAllFromSupabase();
 };
+window.deleteJobNote = async function(jobId, noteId){
+  if (!isAdmin()) return alert('Accès admin requis.');
+  if (!confirm('Supprimer cette note?')) return;
+  const { error } = await supabaseClient.from('job_notes').delete().eq('id', noteId);
+  if (error) return alert('Erreur suppression note: ' + error.message);
+  await loadAllFromSupabase();
+};
+
 renderJobs = function(){
   const list = $('jobList');
   if (!list) return;
-  list.innerHTML = state.jobs.map(j => {
-    const ex = getJobExtra(j.id);
-    const photos = (ex.photos || []).slice(0,8).map(p => `<div><img src="${p.data}" class="jobMediaThumb" title="${fmtDT(p.date)}"><button class="secondary" style="width:100%;margin-top:5px;padding:6px!important" onclick="deleteJobPhoto('${j.id}','${p.id}')">Retirer</button></div>`).join('');
-    const notes = (ex.notes || []).slice(0,5).map(n => `<div class="jobNoteItem"><small>${fmtDT(n.date)} · ${esc(n.author||'')}</small><div>${esc(n.text).replace(/\n/g,'<br>')}</div>${isAdmin()?`<button class="secondary" onclick="deleteJobNote('${j.id}','${n.id}')">Supprimer note</button>`:''}</div>`).join('');
+  const warning = jobFilesReady() ? '' : `<div class="card warningCard"><strong>Partage photos/notes non activé</strong><br>${jobExtrasMissingMessage()} Les chantiers restent visibles, mais les photos/notes/documents ne seront pas synchronisés tant que la migration n’est pas faite.</div>`;
+  list.innerHTML = warning + (state.jobs.map(j => {
+    const photos = jobPhotos(j.id).slice(0,10).map(p => `<div class="jobMediaItem"><a href="${esc(p.url)}" target="_blank" rel="noopener"><img src="${esc(p.url)}" class="jobMediaThumb" title="${fmtDT(p.createdAt)}"></a>${isAdmin()?`<button class="secondary compactBtn" onclick="deleteJobPhoto('${j.id}','${p.id}')">Retirer</button>`:''}</div>`).join('');
+    const docs = jobDocuments(j.id).slice(0,10).map(d => `<div class="jobDocItem"><a href="${esc(d.url)}" target="_blank" rel="noopener">📎 ${esc(d.name || 'Document')}</a>${isAdmin()?`<button class="secondary compactBtn" onclick="deleteJobDocument('${j.id}','${d.id}')">Retirer</button>`:''}</div>`).join('');
+    const notes = jobNotes(j.id).slice(0,8).map(n => `<div class="jobNoteItem"><small>${fmtDT(n.createdAt)} · ${esc(n.author || '')}</small><div>${esc(n.note).replace(/\n/g,'<br>')}</div>${isAdmin()?`<button class="secondary compactBtn" onclick="deleteJobNote('${j.id}','${n.id}')">Supprimer note</button>`:''}</div>`).join('');
     return `<div class="jobRow jobCardPro"><div class="rowTop"><strong><span class="colorDot" style="background:${j.color}"></span> ${esc(j.name)}</strong><span>${esc(j.address || '')}</span></div><p>${esc(j.notes || '')}</p>
       <div class="jobActions">${isAdmin() ? `<button onclick="editJob('${j.id}')">Modifier</button> <button class="danger" onclick="deleteJob('${j.id}')">Supprimer chantier complet</button>` : ''}</div>
-      <div class="jobNoteBox"><strong>📸 Photos du chantier</strong><div class="photoInputs"><label class="fileBtn">Prendre photo<input class="hiddenFile" id="jobCam_${j.id}" type="file" accept="image/*" capture="environment" onchange="addJobPhoto('${j.id}','jobCam_${j.id}')"></label><label class="fileBtn">Choisir galerie<input class="hiddenFile" id="jobGal_${j.id}" type="file" accept="image/*" onchange="addJobPhoto('${j.id}','jobGal_${j.id}')"></label></div><div class="jobMediaGrid">${photos || '<span class="hint">Aucune photo pour ce chantier.</span>'}</div></div>
-      <div class="jobNoteBox"><strong>📝 Journal de chantier</strong><textarea id="jobNoteInput_${j.id}" rows="3" placeholder="Ajouter une note de chantier..."></textarea><button onclick="saveJobJournalNote('${j.id}')">Ajouter note</button>${notes || '<p class="hint">Aucune note pour ce chantier.</p>'}</div>
+      <div class="jobNoteBox"><strong>📸 Photos partagées</strong><div class="photoInputs"><label class="fileBtn">Prendre photo<input class="hiddenFile" id="jobCam_${j.id}" type="file" accept="image/*" capture="environment" onchange="addJobPhoto('${j.id}','jobCam_${j.id}')"></label><label class="fileBtn">Choisir galerie<input class="hiddenFile" id="jobGal_${j.id}" type="file" accept="image/*" onchange="addJobPhoto('${j.id}','jobGal_${j.id}')"></label></div><div class="jobMediaGrid">${photos || '<span class="hint">Aucune photo partagée pour ce chantier.</span>'}</div></div>
+      <div class="jobNoteBox"><strong>📎 Documents partagés</strong><div class="photoInputs"><label class="fileBtn">Ajouter document<input class="hiddenFile" id="jobDoc_${j.id}" type="file" accept="application/pdf,image/*,.doc,.docx,.xls,.xlsx,.txt" onchange="addJobDocument('${j.id}','jobDoc_${j.id}')"></label></div><div class="jobDocList">${docs || '<span class="hint">Aucun document pour ce chantier.</span>'}</div></div>
+      <div class="jobNoteBox"><strong>📝 Journal partagé</strong><textarea id="jobNoteInput_${j.id}" rows="3" placeholder="Ajouter une note de chantier visible par tout le monde..."></textarea><button onclick="saveJobJournalNote('${j.id}')">Ajouter note</button>${notes || '<p class="hint">Aucune note pour ce chantier.</p>'}</div>
     </div>`;
-  }).join('') || '<div class="card">Aucun chantier.</div>';
+  }).join('') || '<div class="card">Aucun chantier.</div>');
 };
+
+const baseLoadAllSharedV105 = loadAllFromSupabase;
+loadAllFromSupabase = async function(){
+  await baseLoadAllSharedV105();
+  try {
+    const [photosRes, notesRes, docsRes] = await Promise.all([
+      supabaseClient.from('job_photos').select('*').order('created_at', { ascending: false }),
+      supabaseClient.from('job_notes').select('*').order('created_at', { ascending: false }),
+      supabaseClient.from('job_documents').select('*').order('created_at', { ascending: false })
+    ]);
+    if (photosRes.error || notesRes.error || docsRes.error) throw (photosRes.error || notesRes.error || docsRes.error);
+    state.jobPhotos = (photosRes.data || []).map(p => ({ id:p.id, jobId:p.job_id, filePath:p.file_path, url:p.public_url, name:p.original_name, createdAt:p.created_at, userId:p.created_by }));
+    state.jobNotes = (notesRes.data || []).map(n => ({ id:n.id, jobId:n.job_id, note:n.note, author:n.author_name, createdAt:n.created_at, userId:n.created_by }));
+    state.jobDocuments = (docsRes.data || []).map(d => ({ id:d.id, jobId:d.job_id, filePath:d.file_path, url:d.public_url, name:d.original_name, createdAt:d.created_at, userId:d.created_by }));
+    state.jobExtrasReady = true;
+  } catch(e) {
+    console.warn('Modules chantier partagés non disponibles:', e && e.message ? e.message : e);
+    state.jobPhotos = [];
+    state.jobNotes = [];
+    state.jobDocuments = [];
+    state.jobExtrasReady = false;
+  }
+  renderAll();
+};
+
 
 function setupV10Handlers(){
   applyTheme();
@@ -1155,7 +1279,7 @@ setupHandlers = function(){ oldSetupHandlersV10(); setupV10Handlers(); };
 startApp();
 
 
-/* V10.3 - réglages mobile fix: fonctionne même si les anciens handlers se contredisent */
+/* V10.5 - réglages mobile + modules chantier partagés: fonctionne même si les anciens handlers se contredisent */
 (function(){
   const THEME_KEY_A = 'saran_theme';
   const THEME_KEY_B = 'saranTheme';
@@ -1215,197 +1339,4 @@ startApp();
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind); else bind();
   window.addEventListener('load', bind);
   window.saranApplyTheme = saveTheme;
-})();
-
-
-/* =========================
-   V10.4 - correctifs solides: retour admin, engrenage mobile, thèmes, calendrier
-   ========================= */
-(function(){
-  const VIEW_KEY = 'saran_view_mode';
-  const THEME_A = 'saran_theme';
-  const THEME_B = 'saranTheme';
-  const themes = ['sand','forest','slate','bronze','night'];
-  const qs = (sel) => document.querySelector(sel);
-  const qsa = (sel) => Array.from(document.querySelectorAll(sel));
-  const byId = (id) => document.getElementById(id);
-
-  function trueAdmin(){
-    return !!(window.currentProfile ? false : false) || !!(typeof currentProfile !== 'undefined' && currentProfile && currentProfile.role === 'admin');
-  }
-  window.saranTrueAdmin = trueAdmin;
-
-  function simulatedEmployee(){
-    try { return localStorage.getItem(VIEW_KEY) === 'employee'; } catch(e) { return false; }
-  }
-
-  // Override final: admin rights are hidden only while testing employee view.
-  isAdmin = function(){
-    return trueAdmin() && !simulatedEmployee();
-  };
-
-  function themeValue(t){ return themes.includes(t) ? t : 'sand'; }
-  function applyTheme104(t){
-    t = themeValue(t || localStorage.getItem(THEME_A) || localStorage.getItem(THEME_B) || 'sand');
-    document.body.setAttribute('data-theme', t);
-    document.documentElement.setAttribute('data-theme', t);
-    try { localStorage.setItem(THEME_A, t); localStorage.setItem(THEME_B, t); } catch(e) {}
-    qsa('.themeBtn').forEach(btn => {
-      const active = btn.dataset.theme === t;
-      btn.classList.toggle('activeTheme', active);
-      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
-    });
-  }
-  window.saranApplyTheme = applyTheme104;
-
-  function closeSettings(){ const m = byId('accountMenu'); if (m) m.classList.add('hidden'); }
-  function openSettings(){ const m = byId('accountMenu'); if (m) m.classList.remove('hidden'); }
-  function toggleSettings(){ const m = byId('accountMenu'); if (m) m.classList.toggle('hidden'); }
-
-  window.saranSetViewMode = function(mode){
-    if (!trueAdmin()) return;
-    try {
-      if (mode === 'employee') localStorage.setItem(VIEW_KEY, 'employee');
-      else localStorage.removeItem(VIEW_KEY);
-    } catch(e) {}
-    closeSettings();
-    if (typeof renderAll === 'function') renderAll();
-  };
-
-  function ensureReturnButton(){
-    let bar = byId('adminReturnBar');
-    if (!bar) {
-      bar = document.createElement('button');
-      bar.id = 'adminReturnBar';
-      bar.type = 'button';
-      bar.textContent = '👑 Retour admin';
-      bar.addEventListener('click', function(e){
-        e.preventDefault();
-        e.stopPropagation();
-        window.saranSetViewMode('admin');
-      }, true);
-      document.body.appendChild(bar);
-    }
-    bar.style.display = trueAdmin() && simulatedEmployee() ? 'flex' : 'none';
-  }
-
-  // Replaces the previous applyRole behavior that hid the entire settings group while in employee simulation.
-  applyRole = function(){
-    const adminVisible = isAdmin();
-    const isTrue = trueAdmin();
-    const simulated = simulatedEmployee();
-
-    const role = byId('roleLabel');
-    if (role) role.textContent = simulated ? 'Mode Employé (test)' : (isTrue ? 'Mode Admin' : 'Mode Employé');
-
-    qsa('.adminOnly').forEach(el => {
-      el.style.display = adminVisible ? '' : 'none';
-    });
-
-    // Keep this group accessible for true admins even while simulating employee view.
-    const group = byId('viewModeGroup');
-    if (group) group.style.display = isTrue ? 'grid' : 'none';
-
-    const employeeBtn = byId('viewAsEmployeeBtn');
-    const adminBtn = byId('viewAsAdminBtn');
-    if (employeeBtn) {
-      employeeBtn.textContent = '👷 Voir comme Karl';
-      employeeBtn.style.display = isTrue && !simulated ? '' : 'none';
-    }
-    if (adminBtn) {
-      adminBtn.textContent = '👑 Retour admin';
-      adminBtn.style.display = isTrue && simulated ? '' : 'none';
-    }
-
-    const connected = byId('connectedUser');
-    if (connected && typeof firstName === 'function') connected.textContent = simulated ? 'Vue employé' : firstName();
-    const dashName = byId('dashFirstName');
-    if (dashName && typeof firstName === 'function') dashName.textContent = firstName();
-
-    document.body.classList.toggle('employeeSimulated', isTrue && simulated);
-    ensureReturnButton();
-  };
-
-  function bindHardFixes(){
-    applyTheme104();
-    ensureReturnButton();
-
-    const gear = byId('accountGearBtn');
-    if (gear && !gear.dataset.v104Bound) {
-      gear.dataset.v104Bound = '1';
-      const handler = function(e){
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        toggleSettings();
-      };
-      gear.addEventListener('pointerup', handler, true);
-      gear.addEventListener('click', handler, true);
-      gear.addEventListener('touchend', handler, {capture:true, passive:false});
-    }
-
-    const close = byId('closeSettings');
-    if (close && !close.dataset.v104Bound) {
-      close.dataset.v104Bound = '1';
-      close.addEventListener('click', function(e){ e.preventDefault(); e.stopImmediatePropagation(); closeSettings(); }, true);
-      close.addEventListener('pointerup', function(e){ e.preventDefault(); e.stopImmediatePropagation(); closeSettings(); }, true);
-    }
-
-    const emp = byId('viewAsEmployeeBtn');
-    if (emp && !emp.dataset.v104Bound) {
-      emp.dataset.v104Bound = '1';
-      emp.addEventListener('click', function(e){ e.preventDefault(); e.stopImmediatePropagation(); window.saranSetViewMode('employee'); }, true);
-      emp.addEventListener('pointerup', function(e){ e.preventDefault(); e.stopImmediatePropagation(); window.saranSetViewMode('employee'); }, true);
-    }
-    const adm = byId('viewAsAdminBtn');
-    if (adm && !adm.dataset.v104Bound) {
-      adm.dataset.v104Bound = '1';
-      adm.addEventListener('click', function(e){ e.preventDefault(); e.stopImmediatePropagation(); window.saranSetViewMode('admin'); }, true);
-      adm.addEventListener('pointerup', function(e){ e.preventDefault(); e.stopImmediatePropagation(); window.saranSetViewMode('admin'); }, true);
-    }
-
-    qsa('.themeBtn').forEach(btn => {
-      if (btn.dataset.v104Bound) return;
-      btn.dataset.v104Bound = '1';
-      const fn = function(e){ e.preventDefault(); e.stopImmediatePropagation(); applyTheme104(btn.dataset.theme); };
-      btn.addEventListener('click', fn, true);
-      btn.addEventListener('pointerup', fn, true);
-    });
-
-    const logoutBtn = byId('menuLogout');
-    if (logoutBtn && !logoutBtn.dataset.v104Bound) {
-      logoutBtn.dataset.v104Bound = '1';
-      logoutBtn.addEventListener('click', function(e){
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        try { localStorage.removeItem(VIEW_KEY); } catch(err) {}
-        if (supabaseClient) supabaseClient.auth.signOut().finally(()=>{ currentProfile=null; currentUser=null; showLogin(); });
-        else showLogin();
-      }, true);
-    }
-
-    const clear = byId('clearAppCache');
-    if (clear && !clear.dataset.v104Bound) {
-      clear.dataset.v104Bound = '1';
-      clear.addEventListener('click', async function(e){
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        try { localStorage.removeItem(VIEW_KEY); } catch(err) {}
-        try { if ('caches' in window) { const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); } } catch(err) {}
-        location.reload();
-      }, true);
-    }
-
-    document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeSettings(); });
-  }
-
-  const oldRenderAll = renderAll;
-  renderAll = function(){
-    oldRenderAll();
-    applyRole();
-    bindHardFixes();
-  };
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindHardFixes);
-  else bindHardFixes();
-  window.addEventListener('load', bindHardFixes);
 })();

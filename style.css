@@ -655,81 +655,17 @@ body[data-theme="sand"]{--bg:#f3eadb;--bg2:#ece0cf;--panel:#fffaf1;--panel2:#f6e
 #accountMenu.settingsPanel{touch-action:auto!important;}
 @media(max-width:760px){.accountGearBtn{z-index:2147483647!important}.settingsPanel{z-index:2147483646!important}}
 
-
-/* =========================
-   V10.4 - polissage UI + calendrier + mobile + retour admin
-   ========================= */
-:root,
-body[data-theme="sand"]{
-  --bg:#eee5d4;
-  --bg2:#e4d7c1;
-  --panel:#fffaf0;
-  --panel2:#f5ead7;
-  --line:#c9b992;
-  --line2:#a78f5b;
-  --text:#1d241b;
-  --muted:#716953;
-  --accent:#314b34;
-  --accent2:#b08a45;
-  --danger:#9d2d2d;
-}
-body[data-theme="forest"]{--bg:#102017;--bg2:#162b1f;--panel:#f2ead9;--panel2:#e6dcc6;--line:#9b946e;--line2:#31543b;--text:#152017;--muted:#5d604e;--accent:#1f4b30;--accent2:#c59a4a;--danger:#9d2d2d;}
-body[data-theme="slate"]{--bg:#dde1dd;--bg2:#cfd6d1;--panel:#f7f8f4;--panel2:#edf0ec;--line:#aeb8b1;--line2:#60716a;--text:#1d2523;--muted:#66716b;--accent:#394b49;--accent2:#987549;--danger:#9d2d2d;}
-body[data-theme="bronze"]{--bg:#eadfce;--bg2:#dcc8ac;--panel:#fff7eb;--panel2:#f4e2c8;--line:#c49e68;--line2:#8c552a;--text:#271b12;--muted:#715d46;--accent:#744a27;--accent2:#1f4b30;--danger:#9d2d2d;}
-body[data-theme="night"]{--bg:#090b09;--bg2:#111711;--panel:#171d17;--panel2:#202820;--line:#394739;--line2:#6f855e;--text:#f1ecd9;--muted:#b6af98;--accent:#d6b56d;--accent2:#6e8c58;--danger:#d15b5b;}
-
-body{background:linear-gradient(135deg,var(--bg) 0%,var(--bg2) 100%)!important;color:var(--text)!important;}
-body:before{opacity:.14!important;background-image:linear-gradient(rgba(49,75,52,.11) 1px,transparent 1px),linear-gradient(90deg,rgba(49,75,52,.08) 1px,transparent 1px)!important;}
-.topbar,.card,.dashPanel,.kpiCard,.jobRow,.expenseRow,.punchRow,.taskRow{background:var(--panel)!important;color:var(--text)!important;border-color:var(--line)!important;box-shadow:0 14px 34px rgba(41,32,16,.12)!important;}
-button,.tabs button{background:var(--accent)!important;color:#fff!important;border-color:rgba(0,0,0,.08)!important;box-shadow:0 9px 22px rgba(31,49,26,.16)!important;}
-button.secondary,.ghostBtn{background:var(--panel2)!important;color:var(--text)!important;border-color:var(--line)!important;}
-button.danger,.danger{background:var(--danger)!important;color:#fff!important;}
-.tabs{background:rgba(255,250,240,.82)!important;border-color:var(--line)!important;box-shadow:0 14px 30px rgba(41,32,16,.10)!important;}
-.tabs button.active{background:var(--accent2)!important;color:#17130c!important;}
-input,select,textarea{background:#fffef8!important;color:var(--text)!important;border-color:var(--line)!important;}
-body[data-theme="night"] input,body[data-theme="night"] select,body[data-theme="night"] textarea{background:#101610!important;color:var(--text)!important;}
-.hint,.emptyState,small{color:var(--muted)!important;}
-
-.calendarGrid{background:rgba(255,255,255,.55)!important;border:2px solid var(--line2)!important;border-radius:22px!important;padding:10px!important;gap:8px!important;box-shadow:0 14px 30px rgba(41,32,16,.10)!important;}
-.dayName{color:var(--accent)!important;font-size:12px!important;font-weight:950!important;padding:8px 2px!important;}
-.day{min-height:110px!important;background:rgba(255,255,255,.74)!important;border:2px solid var(--line)!important;border-radius:16px!important;color:var(--text)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 6px 16px rgba(0,0,0,.04)!important;}
-.day:hover{background:#fffef8!important;border-color:var(--accent)!important;transform:translateY(-1px);}
-.day.out{opacity:.55!important;background:rgba(255,255,255,.42)!important;}
-.dateNum{color:var(--accent)!important;font-size:14px!important;}
-.eventPill{border-radius:9px!important;font-size:11px!important;padding:6px 8px!important;border:1px solid rgba(0,0,0,.10)!important;box-shadow:0 6px 13px rgba(0,0,0,.13)!important;}
-.day:nth-child(7n),.day:nth-child(7n+1){background:rgba(255,255,255,.68)!important;}
-
-.accountGearBtn{position:fixed!important;right:20px!important;bottom:20px!important;z-index:2147483647!important;width:56px!important;height:56px!important;border-radius:999px!important;display:flex!important;align-items:center!important;justify-content:center!important;font-size:24px!important;background:var(--accent)!important;color:#fff!important;border:2px solid rgba(255,255,255,.5)!important;pointer-events:auto!important;touch-action:manipulation!important;}
-#accountMenu.settingsPanel{position:fixed!important;right:20px!important;bottom:88px!important;width:330px!important;max-height:min(76vh,680px)!important;overflow:auto!important;-webkit-overflow-scrolling:touch!important;z-index:2147483646!important;background:var(--panel)!important;color:var(--text)!important;border:2px solid var(--line)!important;border-radius:22px!important;box-shadow:0 28px 80px rgba(0,0,0,.24)!important;padding:0!important;}
-#accountMenu.settingsPanel.hidden{display:none!important;}
-.settingsHead{display:flex!important;align-items:center!important;justify-content:space-between!important;padding:15px 16px!important;border-bottom:1px solid var(--line)!important;background:var(--panel2)!important;}
-.settingsHead button{width:38px!important;height:38px!important;padding:0!important;display:flex!important;align-items:center!important;justify-content:center!important;background:transparent!important;color:var(--text)!important;box-shadow:none!important;}
-.settingsGroup{display:grid;gap:8px;padding:14px 16px;border-bottom:1px solid var(--line)}
-.settingsGroup button,.themeBtn{width:100%!important;text-align:left!important;background:var(--panel2)!important;color:var(--text)!important;border:1px solid var(--line)!important;box-shadow:none!important;}
-.themeBtn.activeTheme{outline:3px solid var(--accent2)!important;background:#fff8e6!important;}
-body[data-theme="night"] .themeBtn.activeTheme{background:#2d382d!important;}
-
-#adminReturnBar{position:fixed!important;left:50%!important;transform:translateX(-50%)!important;bottom:18px!important;z-index:2147483647!important;width:auto!important;min-width:210px!important;justify-content:center!important;align-items:center!important;gap:8px!important;background:#d6b56d!important;color:#1c160b!important;border:2px solid rgba(0,0,0,.12)!important;border-radius:999px!important;padding:14px 20px!important;font-weight:950!important;box-shadow:0 18px 50px rgba(0,0,0,.22)!important;}
-body.employeeSimulated .adminBadgeWrap:after{content:"Vue employé active";display:inline-flex;margin-left:8px;background:#d6b56d;color:#1c160b;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:900;}
-
-@media(max-width:760px){
-  main{padding:10px 10px 26px!important;}
-  .topbar{padding:14px 12px 6px!important;gap:8px!important;}
-  .dashboardTop .logo.logoIcon,.dashboardTop .logo{width:74px!important;height:74px!important;}
-  .dashboardTop h1{font-size:18px!important;letter-spacing:.05em!important;}
-  .tabs{display:grid!important;grid-template-columns:repeat(4,1fr)!important;gap:6px!important;position:sticky!important;top:0!important;margin:8px 0 12px!important;padding:6px!important;border-radius:18px!important;z-index:40!important;}
-  .tabs button{min-width:0!important;padding:10px 4px!important;font-size:10px!important;border-radius:12px!important;}
-  .tabs button .navIcon{display:none!important;}
-  .kpiGrid,.dashGrid,.homeGrid{grid-template-columns:1fr!important;gap:10px!important;}
-  .kpiCard,.dashPanel,.card{padding:13px!important;border-radius:18px!important;}
-  h2{font-size:21px!important;} h3{font-size:15px!important;}
-  .calendarGrid{gap:4px!important;padding:5px!important;border-radius:16px!important;}
-  .dayName{font-size:9px!important;padding:4px 0!important;}
-  .day{min-height:82px!important;padding:5px!important;border-width:1.5px!important;border-radius:11px!important;}
-  .dateNum{font-size:11px!important;}
-  .eventPill{font-size:8px!important;padding:3px 4px!important;margin-top:3px!important;}
-  #accountMenu.settingsPanel{left:10px!important;right:10px!important;bottom:82px!important;width:auto!important;max-height:72vh!important;border-radius:20px!important;}
-  .accountGearBtn{right:14px!important;bottom:14px!important;width:54px!important;height:54px!important;}
-  #adminReturnBar{bottom:14px!important;min-width:190px!important;padding:13px 18px!important;}
-  body.employeeSimulated .accountGearBtn{bottom:78px!important;}
+/* V10.5 - chantier partagé */
+.warningCard{border-color:#c58b35!important;background:rgba(197,139,53,.14)!important;color:var(--text)}
+.jobMediaItem{display:flex;flex-direction:column;gap:4px}
+.compactBtn{font-size:11px!important;padding:7px 8px!important;margin-top:4px!important;border-radius:10px!important}
+.jobDocList{display:grid;gap:8px;margin-top:8px}
+.jobDocItem{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.05)}
+.jobDocItem a{color:var(--text);font-weight:800;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jobDocItem a:hover{text-decoration:underline}
+.hiddenFile{display:none!important}
+@media(max-width:720px){
+  .jobDocItem{align-items:flex-start;flex-direction:column}
+  .jobMediaGrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .jobMediaThumb{height:120px!important;object-fit:cover}
 }

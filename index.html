@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Saran Construction App V10.4 Pro</title>
+  <title>Saran Construction App V10.5 Pro</title>
 
   <meta name="theme-color" content="#0b0b0b" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="Saran App" />
   <link rel="apple-touch-icon" href="logo-icon.png" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=104pro" />
+  <link rel="stylesheet" href="style.css?v=105pro" />
 </head>
 <body>
   <header class="topbar dashboardTop fullLogoWatermark">
@@ -250,8 +250,8 @@
     </div>
     <div class="settingsGroup adminOnly" id="viewModeGroup">
       <small>Test admin</small>
-      <button id="viewAsEmployeeBtn" type="button">👷 Voir comme Karl</button>
-      <button id="viewAsAdminBtn" type="button">👑 Retour admin</button>
+      <button id="viewAsEmployeeBtn" type="button">Voir comme employé</button>
+      <button id="viewAsAdminBtn" type="button">Revenir admin</button>
     </div>
     <div class="settingsGroup">
       <small>Apparence</small>
@@ -264,19 +264,19 @@
     <div class="settingsGroup">
       <small>Application</small>
       <button id="clearAppCache" type="button">Vider cache / rafraîchir</button>
-      <p class="hint">Saran App V10.4 Pro</p>
+      <p class="hint">Saran App V10.5 Pro</p>
     </div>
   </div>
   <button id="accountGearBtn" class="accountGearBtn" type="button" aria-label="Réglages">⚙️</button>
 
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="script.js?v=104pro"></script>
+  <script src="script.js?v=105pro"></script>
 
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js?v=104pro').catch(() => {});
+        navigator.serviceWorker.register('/sw.js?v=105pro').catch(() => {});
       });
     }
   </script>
