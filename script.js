@@ -926,8 +926,94 @@ function renderMyTasks() {
 
 function renderToday() {
   const iso = todayISO();
-  const evs = state.events.filter(e => e.date === iso);
-  $('todayList').innerHTML = evs.map(e => eventHtml(e)).join('') || '<div class="card">Rien au calendrier aujourd’hui.</div>';
+  const evs = state.events
+    .filter(e => e.date === iso)
+    .sort((a,b) => String(a.time || '').localeCompare(String(b.time || '')));
+  const tasks = state.tasks
+    .filter(t => (t.date === iso || t.task_date === iso))
+    .slice(0, 5);
+  const todayPunches = state.punches.filter(p => (p.start || '').slice(0,10) === iso);
+  const todayMinutes = todayPunches.reduce((sum,p) => sum + (Number(p.paid_minutes) || paidMinutes(p.start, p.end, p.lunch_minutes)), 0);
+  const weekStart = startOfWeek(new Date());
+  const weekEnd = addDays(weekStart, 7);
+  const weekMinutes = state.punches
+    .filter(p => new Date(p.start) >= weekStart && new Date(p.start) < weekEnd)
+    .reduce((sum,p) => sum + (Number(p.paid_minutes) || paidMinutes(p.start, p.end, p.lunch_minutes)), 0);
+  const firstEvent = evs[0];
+  const currentJob = firstEvent ? jobById(firstEvent.jobId) : null;
+  const nextTask = tasks[0];
+  const active = state.activePunch;
+  const activeJob = active ? jobById(active.jobId) : null;
+  const recentExpenses = [...state.expenses].sort((a,b) => String(b.date).localeCompare(String(a.date))).slice(0,3);
+  const upcoming = state.events
+    .filter(e => e.date >= iso)
+    .sort((a,b) => (a.date + ' ' + (a.time || '')).localeCompare(b.date + ' ' + (b.time || '')))
+    .slice(0,3);
+
+  $('todayList').innerHTML = `
+    <div class="dashGrid">
+      <div class="metricCard">
+        <div class="metricIcon">⏱</div>
+        <small>TEMPS AUJOURD’HUI</small>
+        <strong>${h(todayMinutes)}</strong>
+        <p>${active ? 'Punch actif depuis ' + new Date(active.start).toLocaleTimeString('fr-CA',{hour:'2-digit',minute:'2-digit'}) : 'Aucun punch actif'}</p>
+      </div>
+      <div class="metricCard">
+        <div class="metricIcon">📊</div>
+        <small>HEURES CETTE SEMAINE</small>
+        <strong>${h(weekMinutes)}</strong>
+        <p>Sur 40h prévues</p>
+        <div class="progress"><span style="width:${Math.min(100, (weekMinutes/2400)*100)}%"></span></div>
+      </div>
+      <div class="metricCard">
+        <div class="metricIcon">💼</div>
+        <small>CHANTIER ACTUEL</small>
+        <strong class="metricTitle">${esc((activeJob && activeJob.name) || (currentJob && currentJob.name) || 'Aucun chantier')}</strong>
+        <p>${esc((currentJob && currentJob.address) || 'Clique pour voir les chantiers')}</p>
+        <button type="button" onclick="goTab('jobs')">Changer de chantier</button>
+      </div>
+      <div class="metricCard">
+        <div class="metricIcon">☑</div>
+        <small>PROCHAINE TÂCHE</small>
+        <strong class="metricTitle">${esc((nextTask && nextTask.title) || 'Aucune tâche')}</strong>
+        <p>Aujourd’hui</p>
+        <button type="button" onclick="goTab('mytasks')">Voir les tâches</button>
+      </div>
+    </div>
+
+    <div class="dashboardLayout">
+      <div class="dashPanel punchPreview">
+        <div class="panelTitle"><span>◷</span><strong>Punch</strong></div>
+        <div class="punchPreviewMain">
+          <div><small>Statut actuel</small><strong class="${active ? 'statusGood':'statusOff'}">${active ? 'PUNCH IN' : 'Aucun punch actif'}</strong><p>${activeJob ? esc(activeJob.name) : ''}</p></div>
+          <div><strong class="bigTimer">${active ? h(minutesBetween(active.start, new Date().toISOString())) : '00:00'}</strong><p>Temps travaillé aujourd’hui</p></div>
+          <button type="button" onclick="goTab('punch')">${active ? 'Punch out' : 'Punch in'}</button>
+        </div>
+      </div>
+
+      <div class="dashPanel tasksPreview">
+        <div class="panelTitle"><span>☑</span><strong>Tâches du jour</strong><button type="button" onclick="goTab('mytasks')">Voir toutes</button></div>
+        <div class="cleanList">
+          ${tasks.map(t => `<div><span class="fakeCheck"></span><strong>${esc(t.title)}</strong><small>${esc((jobById(t.jobId)||{}).name || '')}</small></div>`).join('') || '<p class="empty">Aucune tâche aujourd’hui.</p>'}
+        </div>
+        <button class="wideAdd" type="button" onclick="goTab('mytasks')">+ Nouvelle tâche</button>
+      </div>
+
+      <div class="dashPanel expensesPreview">
+        <div class="panelTitle"><span>🧾</span><strong>Dépenses récentes</strong><button type="button" onclick="goTab('expenses')">Voir toutes</button></div>
+        <div class="miniTable">
+          ${recentExpenses.map(e => `<div><span>${esc(e.date || '')}</span><strong>${esc(e.supplier || e.desc || 'Dépense')}</strong><span>${Number(e.amount||0).toFixed(2)} $</span></div>`).join('') || '<p class="empty">Aucune dépense.</p>'}
+        </div>
+      </div>
+
+      <div class="dashPanel eventsPreview">
+        <div class="panelTitle"><span>📅</span><strong>Prochains événements</strong><button type="button" onclick="goTab('calendar')">Voir calendrier</button></div>
+        <div class="eventList">
+          ${upcoming.map(e => `<div><b>${String(e.date||'').slice(8,10) || '--'}<small>${String(e.date||'').slice(5,7) || ''}</small></b><span><strong>${esc(e.title || (jobById(e.jobId)||{}).name || 'Événement')}</strong><small>${esc((jobById(e.jobId)||{}).name || '')}</small></span><em>${esc(e.time || '')}</em></div>`).join('') || '<p class="empty">Rien à venir.</p>'}
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 function renderAll() {
@@ -984,8 +1070,28 @@ function setupHandlers() {
   if ($('cancelPasswordBtn')) $('cancelPasswordBtn').onclick = async () => { const { data:{session} } = await supabaseClient.auth.getSession(); if (session) await openSession(session); else showLogin(); };
 }
 
+
+function initAppearancePanel() {
+  const root = document.documentElement;
+  const saved = localStorage.getItem('saranTheme') || 'sand';
+  const setTheme = theme => {
+    root.setAttribute('data-theme', theme);
+    localStorage.setItem('saranTheme', theme);
+    document.querySelectorAll('.themeChoice').forEach(btn => btn.classList.toggle('active', btn.dataset.theme === theme));
+  };
+  const open = () => { if ($('appearancePanel')) $('appearancePanel').classList.remove('hidden'); if ($('appearanceOverlay')) $('appearanceOverlay').classList.remove('hidden'); };
+  const close = () => { if ($('appearancePanel')) $('appearancePanel').classList.add('hidden'); if ($('appearanceOverlay')) $('appearanceOverlay').classList.add('hidden'); };
+  setTheme(saved);
+  if ($('menuAppearance')) $('menuAppearance').onclick = open;
+  if ($('closeAppearance')) $('closeAppearance').onclick = close;
+  if ($('appearanceOverlay')) $('appearanceOverlay').onclick = close;
+  if ($('resetTheme')) $('resetTheme').onclick = () => setTheme('sand');
+  document.querySelectorAll('.themeChoice').forEach(btn => btn.onclick = () => setTheme(btn.dataset.theme || 'sand'));
+}
+
 async function startApp() {
   setupHandlers();
+  initAppearancePanel();
   try {
     await initSupabase();
     supabaseClient.auth.onAuthStateChange((event, session) => {

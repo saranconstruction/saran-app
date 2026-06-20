@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Saran Construction App V8.2</title>
+  <title>Saran Construction App V9 UI</title>
 
   <meta name="theme-color" content="#0b0b0b" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="Saran App" />
   <link rel="apple-touch-icon" href="logo-icon.png" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=82" />
+  <link rel="stylesheet" href="style.css?v=90" />
 </head>
 <body>
   <header class="topbar dashboardTop fullLogoWatermark">
@@ -224,7 +224,7 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="script.js?v=82"></script>
+  <script src="script.js?v=90"></script>
 
   <script>
     if ('serviceWorker' in navigator) {
@@ -236,10 +236,35 @@
 
 
   <div id="accountMenu" class="accountMenu hidden">
+    <button id="menuAppearance" type="button">Apparence</button>
     <button id="menuChangePassword" type="button">Changer le mot de passe</button>
     <button id="menuLogout" type="button">Déconnexion</button>
   </div>
   <button id="accountGearBtn" class="accountGearBtn" type="button">⚙️</button>
+
+
+  <div id="appearanceOverlay" class="appearanceOverlay hidden"></div>
+  <aside id="appearancePanel" class="appearancePanel hidden" aria-label="Personnaliser l'apparence">
+    <div class="appearanceHeader">
+      <strong>Personnaliser l’apparence</strong>
+      <button id="closeAppearance" type="button" aria-label="Fermer">×</button>
+    </div>
+    <div class="appearanceBody">
+      <label>Choisir un thème</label>
+      <button class="themeChoice" data-theme="sand"><span class="themeSwatch sand"></span><span>Sable</span><strong>✓</strong></button>
+      <button class="themeChoice" data-theme="forest"><span class="themeSwatch forest"></span><span>Forêt</span><strong>✓</strong></button>
+      <button class="themeChoice" data-theme="slate"><span class="themeSwatch slate"></span><span>Ardoise</span><strong>✓</strong></button>
+      <button class="themeChoice" data-theme="night"><span class="themeSwatch night"></span><span>Bleu nuit</span><strong>✓</strong></button>
+      <button class="themeChoice" data-theme="bronze"><span class="themeSwatch bronze"></span><span>Bronze</span><strong>✓</strong></button>
+      <div class="themePreview">
+        <small>Aperçu</small>
+        <h3>Titre</h3>
+        <p>Texte d’exemple</p>
+        <button type="button">Bouton exemple</button>
+      </div>
+      <button id="resetTheme" type="button" class="secondary">Réinitialiser</button>
+    </div>
+  </aside>
 
 </body>
 </html>
