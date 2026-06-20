@@ -1216,3 +1216,196 @@ startApp();
   window.addEventListener('load', bind);
   window.saranApplyTheme = saveTheme;
 })();
+
+
+/* =========================
+   V10.4 - correctifs solides: retour admin, engrenage mobile, thèmes, calendrier
+   ========================= */
+(function(){
+  const VIEW_KEY = 'saran_view_mode';
+  const THEME_A = 'saran_theme';
+  const THEME_B = 'saranTheme';
+  const themes = ['sand','forest','slate','bronze','night'];
+  const qs = (sel) => document.querySelector(sel);
+  const qsa = (sel) => Array.from(document.querySelectorAll(sel));
+  const byId = (id) => document.getElementById(id);
+
+  function trueAdmin(){
+    return !!(window.currentProfile ? false : false) || !!(typeof currentProfile !== 'undefined' && currentProfile && currentProfile.role === 'admin');
+  }
+  window.saranTrueAdmin = trueAdmin;
+
+  function simulatedEmployee(){
+    try { return localStorage.getItem(VIEW_KEY) === 'employee'; } catch(e) { return false; }
+  }
+
+  // Override final: admin rights are hidden only while testing employee view.
+  isAdmin = function(){
+    return trueAdmin() && !simulatedEmployee();
+  };
+
+  function themeValue(t){ return themes.includes(t) ? t : 'sand'; }
+  function applyTheme104(t){
+    t = themeValue(t || localStorage.getItem(THEME_A) || localStorage.getItem(THEME_B) || 'sand');
+    document.body.setAttribute('data-theme', t);
+    document.documentElement.setAttribute('data-theme', t);
+    try { localStorage.setItem(THEME_A, t); localStorage.setItem(THEME_B, t); } catch(e) {}
+    qsa('.themeBtn').forEach(btn => {
+      const active = btn.dataset.theme === t;
+      btn.classList.toggle('activeTheme', active);
+      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+  }
+  window.saranApplyTheme = applyTheme104;
+
+  function closeSettings(){ const m = byId('accountMenu'); if (m) m.classList.add('hidden'); }
+  function openSettings(){ const m = byId('accountMenu'); if (m) m.classList.remove('hidden'); }
+  function toggleSettings(){ const m = byId('accountMenu'); if (m) m.classList.toggle('hidden'); }
+
+  window.saranSetViewMode = function(mode){
+    if (!trueAdmin()) return;
+    try {
+      if (mode === 'employee') localStorage.setItem(VIEW_KEY, 'employee');
+      else localStorage.removeItem(VIEW_KEY);
+    } catch(e) {}
+    closeSettings();
+    if (typeof renderAll === 'function') renderAll();
+  };
+
+  function ensureReturnButton(){
+    let bar = byId('adminReturnBar');
+    if (!bar) {
+      bar = document.createElement('button');
+      bar.id = 'adminReturnBar';
+      bar.type = 'button';
+      bar.textContent = '👑 Retour admin';
+      bar.addEventListener('click', function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        window.saranSetViewMode('admin');
+      }, true);
+      document.body.appendChild(bar);
+    }
+    bar.style.display = trueAdmin() && simulatedEmployee() ? 'flex' : 'none';
+  }
+
+  // Replaces the previous applyRole behavior that hid the entire settings group while in employee simulation.
+  applyRole = function(){
+    const adminVisible = isAdmin();
+    const isTrue = trueAdmin();
+    const simulated = simulatedEmployee();
+
+    const role = byId('roleLabel');
+    if (role) role.textContent = simulated ? 'Mode Employé (test)' : (isTrue ? 'Mode Admin' : 'Mode Employé');
+
+    qsa('.adminOnly').forEach(el => {
+      el.style.display = adminVisible ? '' : 'none';
+    });
+
+    // Keep this group accessible for true admins even while simulating employee view.
+    const group = byId('viewModeGroup');
+    if (group) group.style.display = isTrue ? 'grid' : 'none';
+
+    const employeeBtn = byId('viewAsEmployeeBtn');
+    const adminBtn = byId('viewAsAdminBtn');
+    if (employeeBtn) {
+      employeeBtn.textContent = '👷 Voir comme Karl';
+      employeeBtn.style.display = isTrue && !simulated ? '' : 'none';
+    }
+    if (adminBtn) {
+      adminBtn.textContent = '👑 Retour admin';
+      adminBtn.style.display = isTrue && simulated ? '' : 'none';
+    }
+
+    const connected = byId('connectedUser');
+    if (connected && typeof firstName === 'function') connected.textContent = simulated ? 'Vue employé' : firstName();
+    const dashName = byId('dashFirstName');
+    if (dashName && typeof firstName === 'function') dashName.textContent = firstName();
+
+    document.body.classList.toggle('employeeSimulated', isTrue && simulated);
+    ensureReturnButton();
+  };
+
+  function bindHardFixes(){
+    applyTheme104();
+    ensureReturnButton();
+
+    const gear = byId('accountGearBtn');
+    if (gear && !gear.dataset.v104Bound) {
+      gear.dataset.v104Bound = '1';
+      const handler = function(e){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        toggleSettings();
+      };
+      gear.addEventListener('pointerup', handler, true);
+      gear.addEventListener('click', handler, true);
+      gear.addEventListener('touchend', handler, {capture:true, passive:false});
+    }
+
+    const close = byId('closeSettings');
+    if (close && !close.dataset.v104Bound) {
+      close.dataset.v104Bound = '1';
+      close.addEventListener('click', function(e){ e.preventDefault(); e.stopImmediatePropagation(); closeSettings(); }, true);
+      close.addEventListener('pointerup', function(e){ e.preventDefault(); e.stopImmediatePropagation(); closeSettings(); }, true);
+    }
+
+    const emp = byId('viewAsEmployeeBtn');
+    if (emp && !emp.dataset.v104Bound) {
+      emp.dataset.v104Bound = '1';
+      emp.addEventListener('click', function(e){ e.preventDefault(); e.stopImmediatePropagation(); window.saranSetViewMode('employee'); }, true);
+      emp.addEventListener('pointerup', function(e){ e.preventDefault(); e.stopImmediatePropagation(); window.saranSetViewMode('employee'); }, true);
+    }
+    const adm = byId('viewAsAdminBtn');
+    if (adm && !adm.dataset.v104Bound) {
+      adm.dataset.v104Bound = '1';
+      adm.addEventListener('click', function(e){ e.preventDefault(); e.stopImmediatePropagation(); window.saranSetViewMode('admin'); }, true);
+      adm.addEventListener('pointerup', function(e){ e.preventDefault(); e.stopImmediatePropagation(); window.saranSetViewMode('admin'); }, true);
+    }
+
+    qsa('.themeBtn').forEach(btn => {
+      if (btn.dataset.v104Bound) return;
+      btn.dataset.v104Bound = '1';
+      const fn = function(e){ e.preventDefault(); e.stopImmediatePropagation(); applyTheme104(btn.dataset.theme); };
+      btn.addEventListener('click', fn, true);
+      btn.addEventListener('pointerup', fn, true);
+    });
+
+    const logoutBtn = byId('menuLogout');
+    if (logoutBtn && !logoutBtn.dataset.v104Bound) {
+      logoutBtn.dataset.v104Bound = '1';
+      logoutBtn.addEventListener('click', function(e){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        try { localStorage.removeItem(VIEW_KEY); } catch(err) {}
+        if (supabaseClient) supabaseClient.auth.signOut().finally(()=>{ currentProfile=null; currentUser=null; showLogin(); });
+        else showLogin();
+      }, true);
+    }
+
+    const clear = byId('clearAppCache');
+    if (clear && !clear.dataset.v104Bound) {
+      clear.dataset.v104Bound = '1';
+      clear.addEventListener('click', async function(e){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        try { localStorage.removeItem(VIEW_KEY); } catch(err) {}
+        try { if ('caches' in window) { const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); } } catch(err) {}
+        location.reload();
+      }, true);
+    }
+
+    document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeSettings(); });
+  }
+
+  const oldRenderAll = renderAll;
+  renderAll = function(){
+    oldRenderAll();
+    applyRole();
+    bindHardFixes();
+  };
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindHardFixes);
+  else bindHardFixes();
+  window.addEventListener('load', bindHardFixes);
+})();
