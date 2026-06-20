@@ -1155,7 +1155,7 @@ setupHandlers = function(){ oldSetupHandlersV10(); setupV10Handlers(); };
 startApp();
 
 
-/* V10.2 - réglages/thèmes robustes: fonctionne même si les anciens handlers se contredisent */
+/* V10.3 - réglages mobile fix: fonctionne même si les anciens handlers se contredisent */
 (function(){
   const THEME_KEY_A = 'saran_theme';
   const THEME_KEY_B = 'saranTheme';
@@ -1180,8 +1180,27 @@ startApp();
     const gear = $('accountGearBtn');
     if (gear) {
       gear.onclick = null;
-      gear.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); toggleMenu(); }, true);
-      gear.addEventListener('touchend', function(e){ e.preventDefault(); e.stopPropagation(); toggleMenu(); }, {capture:true, passive:false});
+      // Mobile fix: on phones a tap can fire touchend AND click, which was opening then closing the menu.
+      // Use one pointer handler and ignore the synthetic click right after.
+      if (!gear.dataset.saranGearBound) {
+        gear.dataset.saranGearBound = '1';
+        let lastTouch = 0;
+        const handleGear = function(e){
+          e.preventDefault();
+          e.stopPropagation();
+          lastTouch = Date.now();
+          toggleMenu();
+        };
+        if (window.PointerEvent) {
+          gear.addEventListener('pointerup', handleGear, {capture:true, passive:false});
+        } else {
+          gear.addEventListener('touchend', handleGear, {capture:true, passive:false});
+        }
+        gear.addEventListener('click', function(e){
+          if (Date.now() - lastTouch < 700) { e.preventDefault(); e.stopPropagation(); return; }
+          e.preventDefault(); e.stopPropagation(); toggleMenu();
+        }, true);
+      }
     }
     const close = $('closeSettings');
     if (close) close.addEventListener('click', function(e){ e.preventDefault(); closeMenu(); }, true);

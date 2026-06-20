@@ -264,19 +264,19 @@
     <div class="settingsGroup">
       <small>Application</small>
       <button id="clearAppCache" type="button">Vider cache / rafraîchir</button>
-      <p class="hint">Saran App V10.2 Pro</p>
+      <p class="hint">Saran App V10.3 Pro</p>
     </div>
   </div>
   <button id="accountGearBtn" class="accountGearBtn" type="button" aria-label="Réglages">⚙️</button>
 
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="script.js?v=102pro"></script>
+  <script src="script.js?v=103pro"></script>
 
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js?v=102pro').catch(() => {});
+        navigator.serviceWorker.register('/sw.js?v=103pro').catch(() => {});
       });
     }
   </script>

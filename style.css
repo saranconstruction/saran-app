@@ -648,3 +648,9 @@ body[data-theme="sand"]{--bg:#f3eadb;--bg2:#ece0cf;--panel:#fffaf1;--panel2:#f6e
   .photoInputs{grid-template-columns:1fr!important;}
   .two{grid-template-columns:1fr!important;}
 }
+
+
+/* V10.3 - mobile gear tap fix */
+.accountGearBtn{touch-action:manipulation!important;-webkit-tap-highlight-color:transparent!important;}
+#accountMenu.settingsPanel{touch-action:auto!important;}
+@media(max-width:760px){.accountGearBtn{z-index:2147483647!important}.settingsPanel{z-index:2147483646!important}}
